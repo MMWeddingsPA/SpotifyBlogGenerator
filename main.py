@@ -10,47 +10,50 @@ from datetime import datetime
 
 # Page configuration
 st.set_page_config(
-    page_title="Wedding DJ Blog Generator",
+    page_title="Wedding DJ Blog Generator | Moments & Memories",
     page_icon="🎵",
     layout="wide"
 )
 
-# Custom CSS to match brand styling
+# Custom CSS to match Moments & Memories branding
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
+
     /* Main text and headers */
     .stMarkdown, .stText {
-        font-family: 'Helvetica Neue', sans-serif;
+        font-family: 'Lato', sans-serif;
+    }
+
+    h1, h2, h3 {
+        font-family: 'Playfair Display', serif;
+        color: #1A2A44;
     }
 
     h1 {
-        color: #1B365D;
         font-weight: 600;
         padding-bottom: 1rem;
     }
 
-    h2, h3 {
-        color: #1B365D;
-        font-weight: 500;
-    }
-
     /* Buttons and interactive elements */
     .stButton button {
-        background-color: #1B365D;
-        color: white;
+        background-color: #D4AF37;
+        color: #1A2A44;
         border-radius: 4px;
         padding: 0.5rem 1rem;
         border: none;
         font-weight: 500;
+        font-family: 'Lato', sans-serif;
+        transition: background-color 0.3s ease;
     }
 
     .stButton button:hover {
-        background-color: #2B466D;
+        background-color: #C19B20;
     }
 
     /* File uploader */
     .uploadedFile {
-        border: 2px dashed #1B365D;
+        border: 2px dashed #D4AF37;
         border-radius: 4px;
         padding: 1rem;
     }
@@ -60,14 +63,45 @@ st.markdown("""
         background-color: #F5F5F5;
     }
 
-    /* Cards */
+    /* Cards and expandable sections */
     .stExpander {
         background-color: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #F5C6CB;
+    }
+
+    /* Progress bars */
+    .stProgress > div > div {
+        background-color: #D4AF37;
+    }
+
+    /* Success messages */
+    .stSuccess {
+        background-color: rgba(212, 175, 55, 0.1);
+        border-color: #D4AF37;
+        color: #1A2A44;
+    }
+
+    /* Warning messages */
+    .stWarning {
+        background-color: rgba(245, 198, 203, 0.1);
+        border-color: #F5C6CB;
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Add logo and header
+col1, col2 = st.columns([1, 5])
+with col1:
+    st.image("https://mmweddingspa.com/wp-content/uploads/2020/01/cropped-MM-Icon.webp", width=100)
+with col2:
+    st.title("Wedding DJ Blog Generator")
+    st.markdown("""
+    <p style='font-family: Lato, sans-serif; font-size: 1.2rem; color: #1A2A44; margin-bottom: 2rem;'>
+    Creating Moments & Memories, One Wedding at a Time
+    </p>
+    """, unsafe_allow_html=True)
 
 # Initialize session state
 if 'df' not in st.session_state:
@@ -140,14 +174,6 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
         return False, str(e)
 
 def main():
-    # Header with brand styling
-    st.title("🎵 Wedding DJ Blog Generator")
-    st.markdown("""
-    <p style='font-size: 1.2rem; color: #666; margin-bottom: 2rem;'>
-    Create engaging blog posts from your wedding music playlists
-    </p>
-    """, unsafe_allow_html=True)
-
     # Initialize API clients
     youtube_api = YouTubeAPI(os.getenv("YOUTUBE_API_KEY"))
     spotify_api = SpotifyAPI(
