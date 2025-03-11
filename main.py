@@ -29,6 +29,64 @@ def save_processed_csv(df, operation_type):
     st.session_state.last_saved_csv = filename
     return filename
 
+def process_playlist(playlist, youtube_api, spotify_api, operations):
+    """Process a single playlist with error handling and progress tracking"""
+    try:
+        # Filter dataset for selected playlist
+        playlist_df = st.session_state.df[
+            st.session_state.df['Playlist'] == playlist
+        ].copy()
+
+        results = {}
+
+        # Fetch YouTube links if selected
+        if "YouTube" in operations:
+            with st.spinner("Fetching YouTube links..."):
+                songs_to_process = playlist_df[
+                    (playlist_df['YouTube_Link'].isna()) | 
+                    (playlist_df['YouTube_Link'] == '')
+                ]
+
+                total_songs = len(songs_to_process)
+                if total_songs > 0:
+                    progress_bar = st.progress(0)
+                    for idx, row in enumerate(songs_to_process.itertuples(), 1):
+                        search_query = f"{row.Song} {row.Artist}"
+                        youtube_link = youtube_api.get_video_link(search_query)
+                        playlist_df.at[row.Index, 'YouTube_Link'] = youtube_link
+                        # Ensure progress is between 0 and 1
+                        progress = min(1.0, idx / total_songs)
+                        progress_bar.progress(progress)
+
+                    # Update main dataframe
+                    st.session_state.df.update(playlist_df)
+                    filename = save_processed_csv(st.session_state.df, "youtube")
+                    results['youtube_file'] = filename
+
+        # Fetch Spotify playlist if selected
+        if "Spotify" in operations:
+            with st.spinner("Fetching Spotify playlist link..."):
+                spotify_link = spotify_api.get_playlist_link(
+                    "bm8eje5tcjj9eazftizqoikwm",
+                    playlist
+                )
+                results['spotify_link'] = spotify_link
+
+        # Generate blog post if selected
+        if "Blog" in operations:
+            with st.spinner("Generating blog post..."):
+                blog_post = generate_blog_post(
+                    playlist_name=playlist,
+                    songs_df=playlist_df,
+                    spotify_link=results.get('spotify_link')
+                )
+                results['blog_post'] = blog_post
+
+        return True, results
+
+    except Exception as e:
+        return False, str(e)
+
 def main():
     st.title("Wedding DJ Blog Generator 🎵")
 
@@ -70,7 +128,7 @@ def main():
         if st.session_state.last_saved_csv and os.path.exists(st.session_state.last_saved_csv):
             if st.button("Load Last Saved CSV"):
                 try:
-                    st.session_state.df = pd.read_csv(st.session_state.last_saved_csv)
+                    st.session_state.df = load_csv(st.session_state.last_saved_csv)
                     st.success(f"Loaded {st.session_state.last_saved_csv}")
                 except Exception as e:
                     st.error(f"Error loading saved CSV: {str(e)}")
@@ -134,66 +192,27 @@ def main():
                 st.warning("Please select at least one operation to perform.")
                 return
 
+            # Process each playlist
             for playlist in selected_playlists:
-                st.write(f"Processing: {playlist.split('Wedding Cocktail Hour')[0].strip()}")
+                st.subheader(f"Processing: {playlist.split('Wedding Cocktail Hour')[0].strip()}")
 
-                try:
-                    # Filter dataset for selected playlist
-                    playlist_df = st.session_state.df[
-                        st.session_state.df['Playlist'] == playlist
-                    ].copy()
+                success, results = process_playlist(playlist, youtube_api, spotify_api, operations)
 
-                    # Fetch YouTube links if selected
-                    if fetch_youtube:
-                        with st.spinner("Fetching YouTube links..."):
-                            progress_bar = st.progress(0)
-                            songs_to_process = playlist_df[
-                                (playlist_df['YouTube_Link'].isna()) | 
-                                (playlist_df['YouTube_Link'] == '')
-                            ]
-
-                            total_songs = len(songs_to_process)
-                            for idx, row in songs_to_process.iterrows():
-                                search_query = f"{row['Song']} {row['Artist']}"
-                                youtube_link = youtube_api.get_video_link(search_query)
-                                playlist_df.at[idx, 'YouTube_Link'] = youtube_link
-                                progress_bar.progress((idx + 1) / total_songs)
-
-                            # Update main dataframe
-                            st.session_state.df.update(playlist_df)
-
-                            # Save progress
-                            filename = save_processed_csv(st.session_state.df, "youtube")
-                            st.success(f"YouTube links updated and saved to {filename}")
-
-                    # Fetch Spotify playlist if selected
-                    if fetch_spotify:
-                        with st.spinner("Fetching Spotify playlist link..."):
-                            spotify_link = spotify_api.get_playlist_link(
-                                "bm8eje5tcjj9eazftizqoikwm",
-                                playlist
-                            )
-                            st.success(f"Spotify playlist link: {spotify_link}")
-
-                    # Generate blog post if selected
-                    if generate_blog:
-                        with st.spinner("Generating blog post..."):
-                            blog_post = generate_blog_post(
-                                playlist_name=playlist,
-                                songs_df=playlist_df,
-                                spotify_link=spotify_link if fetch_spotify else None
-                            )
-
-                            st.header(f"Blog Post: {playlist.split('Wedding Cocktail Hour')[0].strip()}")
+                if success:
+                    if 'youtube_file' in results:
+                        st.success(f"YouTube links updated and saved to {results['youtube_file']}")
+                    if 'spotify_link' in results:
+                        st.success(f"Spotify playlist link: {results['spotify_link']}")
+                    if 'blog_post' in results:
+                        with st.expander(f"Blog Post: {playlist.split('Wedding Cocktail Hour')[0].strip()}", expanded=True):
                             st.text_area(
                                 "Copy the blog post below:",
-                                blog_post,
+                                results['blog_post'],
                                 height=400,
                                 key=f"blog_{playlist}"
                             )
-
-                except Exception as e:
-                    st.error(f"Error processing {playlist}: {str(e)}")
+                else:
+                    st.error(f"Error processing playlist: {results}")
                     continue
 
             st.success("All selected playlists processed successfully!")
