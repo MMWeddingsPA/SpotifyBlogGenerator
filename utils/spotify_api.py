@@ -16,17 +16,12 @@ class SpotifyAPI:
     def clean_playlist_name(self, playlist_name):
         """
         Clean playlist name by:
-        1. Removing numeric prefix (e.g., '001 ')
-        2. Removing 'Wedding Cocktail Hour' suffix
-        3. Trimming whitespace
+        1. Removing numeric prefix (e.g., '006 ')
+        2. Preserving the rest of the name including 'Wedding Cocktail Hour'
         """
         # Remove numeric prefix and any leading spaces
         cleaned_name = re.sub(r'^\d+\s*', '', playlist_name)
-
-        # Remove "Wedding Cocktail Hour" suffix
-        cleaned_name = cleaned_name.replace('Wedding Cocktail Hour', '').strip()
-
-        return cleaned_name
+        return cleaned_name.strip()
 
     def get_playlist_link(self, user_id, playlist_name):
         """
@@ -44,15 +39,6 @@ class SpotifyAPI:
 
                     # Compare cleaned names (case-insensitive)
                     if spotify_name.lower() == search_name.lower():
-                        return playlist['external_urls']['spotify']
-
-                    # Try alternate formats (with/without "The")
-                    if search_name.lower().startswith('the '):
-                        alt_name = search_name[4:]  # Remove "The "
-                    else:
-                        alt_name = 'The ' + search_name
-
-                    if spotify_name.lower() == alt_name.lower():
                         return playlist['external_urls']['spotify']
 
                 if playlists['next']:
