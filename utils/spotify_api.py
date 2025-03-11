@@ -15,12 +15,11 @@ class SpotifyAPI:
 
     def clean_playlist_name(self, playlist_name):
         """
-        Clean playlist name by:
-        1. Removing numeric prefix (e.g., '006 ')
-        2. Preserving the rest of the name including 'Wedding Cocktail Hour'
+        Clean playlist name by removing numeric prefix while preserving the full name
+        Example: '006 The Smooth Sail Wedding Cocktail Hour' -> 'The Smooth Sail Wedding Cocktail Hour'
         """
         # Remove numeric prefix and any leading spaces
-        cleaned_name = re.sub(r'^\d+\s*', '', playlist_name)
+        cleaned_name = re.sub(r'^\d+\s*', '', str(playlist_name))
         return cleaned_name.strip()
 
     def get_playlist_link(self, user_id, playlist_name):
