@@ -1,0 +1,497 @@
+/**
+ * Wedding Playlist Blog Generator - Simplified Single Sheet Approach
+ * 
+ * This script works with just the "Cocktail Lists" sheet to:
+ * 1. Fetch YouTube links for songs
+ * 2. Generate blog posts from playlists
+ */
+
+// Your YouTube API key
+const API_KEY = 'AIzaSyD-pYxBwDUmchqINNj5aWe_fjNUS_Kie-0';
+
+/**
+ * Creates a custom menu in the Google Sheets UI
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Playlist Tools')
+    .addItem('Get YouTube Links for Current Playlist', 'getYouTubeLinksForSelectedPlaylist')
+    .addItem('Generate Blog Post', 'generateBlogForSelectedPlaylist')
+    .addToUi();
+}
+
+/**
+ * Gets a YouTube link for a song and artist
+ * @param {string} song - The song title
+ * @param {string} artist - The artist name
+ * @returns {string} The YouTube video URL or error message
+ */
+function getYoutubeLink(song, artist) {
+  // Construct the query; adding "official" can help find the official video
+  const query = encodeURIComponent(song + " " + artist + " official");
+  const url = "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=" + query + "&key=" + API_KEY;
+  
+  try {
+    const response = UrlFetchApp.fetch(url);
+    const json = JSON.parse(response.getContentText());
+    
+    if (json.items && json.items.length > 0) {
+      const videoId = json.items[0].id.videoId;
+      return "https://www.youtube.com/watch?v=" + videoId;
+    } else {
+      return "No video found";
+    }
+  } catch (e) {
+    return "Error: " + e;
+  }
+}
+
+/**
+ * Gets all playlists from the Cocktail Lists sheet
+ * @returns {Array} Array of playlist names and their row indices
+ */
+function getAllPlaylists() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Cocktail Lists");
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  
+  const playlists = [];
+  
+  for (let i = 0; i < values.length; i++) {
+    // Updated pattern to match any playlist number format (single, double, or triple digits)
+    if (values[i][0] && typeof values[i][0] === 'string' && 
+        (values[i][0].match(/^\d+\s+.+Wedding Cocktail Hour/) || 
+         values[i][0].includes("Wedding Cocktail Hour"))) {
+      playlists.push({
+        name: values[i][0],
+        rowIndex: i
+      });
+    }
+  }
+  
+  return playlists;
+}
+
+/**
+ * Gets YouTube links for all songs in the selected playlist
+ */
+function getYouTubeLinksForSelectedPlaylist() {
+  const ui = SpreadsheetApp.getUi();
+  
+  // Get all available playlists
+  const playlists = getAllPlaylists();
+  
+  if (playlists.length === 0) {
+    ui.alert('Error', 'No playlists found in the spreadsheet.', ui.ButtonSet.OK);
+    return;
+  }
+  
+  // Create a list of playlist names for the dropdown
+  let playlistOptions = '';
+  playlists.forEach(function(playlist, index) {
+    playlistOptions += `<option value="${index}">${playlist.name}</option>`;
+  });
+  
+  // Create an HTML dropdown for the user to select from with search functionality
+  const htmlOutput = HtmlService
+    .createHtmlOutput(`
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        select { width: 100%; padding: 8px; margin: 10px 0; }
+        input { width: 100%; padding: 8px; margin: 10px 0; box-sizing: border-box; }
+        input[type=button] { background-color: #4285f4; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; }
+      </style>
+      <h3>Select a Playlist</h3>
+      <p>Choose the playlist you want to fetch YouTube links for:</p>
+      <input type="text" id="searchInput" placeholder="Search playlists..." onkeyup="filterPlaylists()">
+      <select id="playlistSelect" size="10" style="height: 200px;">
+        ${playlistOptions}
+      </select>
+      <br><br>
+      <input type="button" value="Fetch YouTube Links" onclick="fetchLinks()" />
+      <script>
+        function fetchLinks() {
+          const select = document.getElementById('playlistSelect');
+          const selectedIndex = select.value;
+          google.script.run
+            .withSuccessHandler(function() {
+              google.script.host.close();
+            })
+            .withFailureHandler(function(error) {
+              alert('Error: ' + error);
+              google.script.host.close();
+            })
+            .fetchYouTubeLinksFromSelection(selectedIndex);
+        }
+        
+        function filterPlaylists() {
+          const input = document.getElementById('searchInput');
+          const filter = input.value.toUpperCase();
+          const select = document.getElementById('playlistSelect');
+          const options = select.getElementsByTagName('option');
+          
+          for (let i = 0; i < options.length; i++) {
+            const txtValue = options[i].text;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+              options[i].style.display = "";
+            } else {
+              options[i].style.display = "none";
+            }
+          }
+        }
+      </script>
+    `)
+    .setWidth(500)
+    .setHeight(400);
+  
+  ui.showModalDialog(htmlOutput, 'Fetch YouTube Links');
+}
+
+/**
+ * Fetches YouTube links for the selected playlist
+ * @param {number} selectedIndex - The index of the selected playlist
+ */
+function fetchYouTubeLinksFromSelection(selectedIndex) {
+  const ui = SpreadsheetApp.getUi();
+  const playlists = getAllPlaylists();
+  
+  if (selectedIndex < 0 || selectedIndex >= playlists.length) {
+    ui.alert('Error', 'Invalid playlist selection.', ui.ButtonSet.OK);
+    return;
+  }
+  
+  const playlist = playlists[selectedIndex];
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Cocktail Lists");
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  
+  // Find the next playlist start or end of data
+  let endIndex = values.length;
+  for (let i = playlist.rowIndex + 1; i < values.length; i++) {
+    if (values[i][0] && typeof values[i][0] === 'string' && 
+        (values[i][0].match(/^\d+\s+.+Wedding Cocktail Hour/) || 
+         values[i][0].includes("Wedding Cocktail Hour"))) {
+      endIndex = i;
+      break;
+    }
+  }
+  
+  // Show a progress dialog
+  ui.alert('Processing', 'The script will now start fetching YouTube links. This may take a while. Press OK to continue.', ui.ButtonSet.OK);
+  
+  // Process each song in the playlist
+  let updated = 0;
+  for (let i = playlist.rowIndex + 1; i < endIndex; i++) {
+    // Only process rows that have song and artist but no YouTube link
+    if (values[i][1] && values[i][2] && (!values[i][3] || !values[i][3].includes('youtube.com'))) {
+      const song = values[i][1];
+      const artist = values[i][2];
+      
+      // Fetch the YouTube link
+      const youtubeLink = getYoutubeLink(song, artist);
+      
+      // Update the cell with the YouTube link (column D)
+      sheet.getRange(i + 1, 4).setValue(youtubeLink);
+      updated++;
+      
+      // Add a small delay to avoid hitting API rate limits
+      Utilities.sleep(1000);
+    }
+  }
+  
+  ui.alert('Complete', `YouTube links have been fetched for ${updated} songs in the "${playlist.name}" playlist.`, ui.ButtonSet.OK);
+}
+
+/**
+ * Generates a blog post for the selected playlist
+ */
+function generateBlogForSelectedPlaylist() {
+  const ui = SpreadsheetApp.getUi();
+  
+  // Get all available playlists
+  const playlists = getAllPlaylists();
+  
+  if (playlists.length === 0) {
+    ui.alert('Error', 'No playlists found in the spreadsheet.', ui.ButtonSet.OK);
+    return;
+  }
+  
+  // Create a list of playlist names for the dropdown
+  let playlistOptions = '';
+  playlists.forEach(function(playlist, index) {
+    playlistOptions += `<option value="${index}">${playlist.name}</option>`;
+  });
+  
+  // Create an HTML dropdown for the user to select from with search functionality
+  const htmlOutput = HtmlService
+    .createHtmlOutput(`
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        select { width: 100%; padding: 8px; margin: 10px 0; }
+        input { width: 100%; padding: 8px; margin: 10px 0; box-sizing: border-box; }
+        input[type=button] { background-color: #4285f4; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; }
+      </style>
+      <h3>Select a Playlist</h3>
+      <p>Choose the playlist you want to create a blog post for:</p>
+      <input type="text" id="searchInput" placeholder="Search playlists..." onkeyup="filterPlaylists()">
+      <select id="playlistSelect" size="10" style="height: 200px;">
+        ${playlistOptions}
+      </select>
+      <br><br>
+      <input type="button" value="Generate Blog Post" onclick="generateBlog()" />
+      <script>
+        function generateBlog() {
+          const select = document.getElementById('playlistSelect');
+          const selectedIndex = select.value;
+          google.script.run
+            .withSuccessHandler(function() {
+              google.script.host.close();
+            })
+            .withFailureHandler(function(error) {
+              alert('Error: ' + error);
+              google.script.host.close();
+            })
+            .generateBlogFromSelection(selectedIndex);
+        }
+        
+        function filterPlaylists() {
+          const input = document.getElementById('searchInput');
+          const filter = input.value.toUpperCase();
+          const select = document.getElementById('playlistSelect');
+          const options = select.getElementsByTagName('option');
+          
+          for (let i = 0; i < options.length; i++) {
+            const txtValue = options[i].text;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+              options[i].style.display = "";
+            } else {
+              options[i].style.display = "none";
+            }
+          }
+        }
+      </script>
+    `)
+    .setWidth(500)
+    .setHeight(400);
+  
+  ui.showModalDialog(htmlOutput, 'Generate Blog Post');
+}
+
+/**
+ * Generates a blog post based on the selected playlist index
+ * @param {number} selectedIndex - The index of the selected playlist
+ */
+function generateBlogFromSelection(selectedIndex) {
+  const ui = SpreadsheetApp.getUi();
+  const playlists = getAllPlaylists();
+  
+  if (selectedIndex < 0 || selectedIndex >= playlists.length) {
+    ui.alert('Error', 'Invalid playlist selection.', ui.ButtonSet.OK);
+    return;
+  }
+  
+  const playlist = playlists[selectedIndex];
+  
+  try {
+    // Extract playlist data
+    const playlistData = extractPlaylistData(playlist);
+    if (!playlistData || playlistData.songs.length === 0) {
+      ui.alert('Error', `Could not find playlist "${playlist.name}" or it contains no songs.`, ui.ButtonSet.OK);
+      return;
+    }
+    
+    // Group songs into thematic sections
+    const sections = groupSongsIntoSections(playlistData.songs);
+    
+    // Generate the blog post
+    const blogContent = formatBlogPost(playlist.name, sections);
+    
+    // Create a new document with the blog content
+    const doc = DocumentApp.create(`Blog - ${playlist.name.replace(/^\d+\s+/, '')}`);
+    const body = doc.getBody();
+    
+    // Add the blog content as text (basic formatting only)
+    body.setText(blogContent);
+    
+    doc.saveAndClose();
+    
+    ui.alert('Success', 'Blog post generated successfully! Check your Google Drive for the new document.', ui.ButtonSet.OK);
+  } catch (error) {
+    ui.alert('Error', `Error generating blog post: ${error.message}`, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Extract playlist data from the spreadsheet
+ * @param {object} playlist - The playlist object with name and rowIndex
+ * @returns {object} - Object containing playlist info and songs
+ */
+function extractPlaylistData(playlist) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Cocktail Lists");
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  
+  // Find where the playlist ends
+  let endIndex = values.length;
+  for (let i = playlist.rowIndex + 1; i < values.length; i++) {
+    if (values[i][0] && typeof values[i][0] === 'string' && 
+        (values[i][0].match(/^\d+\s+.+Wedding Cocktail Hour/) || 
+         values[i][0].includes("Wedding Cocktail Hour"))) {
+      endIndex = i;
+      break;
+    }
+  }
+  
+  // Extract songs from this playlist
+  const songs = [];
+  for (let i = playlist.rowIndex + 1; i < endIndex; i++) {
+    if (values[i][1] && values[i][2]) {  // Check if song and artist exist
+      songs.push({
+        fullText: values[i][0],
+        song: values[i][1],
+        artist: values[i][2],
+        youtubeLink: values[i][3] && values[i][3].includes('youtube.com') ? values[i][3] : null,
+        position: i - playlist.rowIndex  // Calculate position based on row order
+      });
+    }
+  }
+  
+  // Get playlist title (remove the numeric prefix)
+  const title = playlist.name.replace(/^\d+\s+/, '');
+  
+  return { title, songs };
+}
+
+/**
+ * Group songs into thematic sections based on their position/order
+ * @param {Array} songs - The playlist songs with YouTube links
+ * @returns {Array} - Grouped sections of songs
+ */
+function groupSongsIntoSections(songs) {
+  // Sort songs by position first (they should already be in order, but just to be safe)
+  songs.sort((a, b) => a.position - b.position);
+  
+  const totalSongs = songs.length;
+  const numberOfSections = totalSongs <= 12 ? 3 : totalSongs <= 20 ? 4 : 5;
+  const songsPerSection = Math.ceil(totalSongs / numberOfSections);
+  
+  // Create sections with descriptive titles
+  const sectionTitles = [
+    "Setting the Perfect Tone",
+    "Romance in the Air",
+    "Timeless Melodies",
+    "Feel-Good Favorites",
+    "Celebration Anthems"
+  ];
+  
+  const sections = [];
+  for (let i = 0; i < numberOfSections; i++) {
+    const sectionSongs = songs.slice(i * songsPerSection, (i + 1) * songsPerSection);
+    sections.push({
+      title: sectionTitles[i],
+      songs: sectionSongs
+    });
+  }
+  
+  return sections;
+}
+
+/**
+ * Format the blog post in Markdown
+ * @param {string} playlistName - The name of the playlist
+ * @param {Array} sections - The thematic sections with songs
+ * @returns {string} - The formatted blog post
+ */
+function formatBlogPost(playlistName, sections) {
+  // Remove number prefix from playlist name
+  const cleanName = playlistName.replace(/^\d+\s+/, '');
+  
+  // Generate the blog post
+  let blog = `## ${cleanName}\n\n`;
+  blog += `### Your Perfect Soundtrack for Love, Laughter, and Celebration\n\n`;
+  
+  // Introduction
+  blog += generateIntroduction(cleanName);
+  
+  // Thematic sections
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    blog += `\n### ${i + 1}. ${section.title}\n\n`;
+    blog += generateSectionContent(section);
+    
+    // Add song list with YouTube links
+    blog += '\n';
+    section.songs.forEach(song => {
+      if (song.youtubeLink) {
+        blog += `- [${song.song} -- ${song.artist}](${song.youtubeLink})\n`;
+      } else {
+        blog += `- ${song.song} -- ${song.artist}\n`;
+      }
+    });
+    blog += '\n';
+  }
+  
+  // Conclusion
+  blog += generateConclusion(cleanName);
+  
+  return blog;
+}
+
+/**
+ * Generate a varied introduction for the blog post
+ * @param {string} playlistName - The name of the playlist
+ * @returns {string} - A formatted introduction
+ */
+function generateIntroduction(playlistName) {
+  const introTemplates = [
+    `When it comes to weddings, creating the perfect atmosphere is key. Whether you're gearing up for a beautiful outdoor celebration or hosting an intimate cocktail hour, music sets the tone for the entire event. That's where *${playlistName}* playlist comes in—a carefully curated collection of tunes that will have everyone smiling, dancing, and celebrating love.\n\nHere's why this playlist is the perfect choice for your wedding cocktail hour:\n\n`,
+    
+    `Your wedding day is a once-in-a-lifetime celebration, and every detail matters—especially the music. The right soundtrack can transform your cocktail hour from a simple intermission into a memorable part of your special day. *${playlistName}* offers the perfect blend of songs to create an atmosphere of joy and anticipation as your guests mingle and celebrate.\n\nLet's explore what makes this playlist special:\n\n`,
+    
+    `Setting the right mood for your wedding cocktail hour can make all the difference between a good wedding and an unforgettable one. Music speaks directly to the heart, and *${playlistName}* is designed to create the perfect ambiance for your guests as they celebrate your love story.\n\nHere's what makes this collection of songs ideal for your special day:\n\n`
+  ];
+  
+  // Randomly select an introduction template
+  const randomIndex = Math.floor(Math.random() * introTemplates.length);
+  return introTemplates[randomIndex];
+}
+
+/**
+ * Generate content for a thematic section
+ * @param {object} section - The section with songs
+ * @returns {string} - Formatted section content
+ */
+function generateSectionContent(section) {
+  // Sample descriptions for different section types
+  const sectionDescriptions = {
+    "Setting the Perfect Tone": "This selection kicks off your cocktail hour with the perfect blend of energy and elegance. These songs create an inviting atmosphere that puts your guests at ease while setting the stage for the celebration to come.",
+    
+    "Romance in the Air": "Every wedding needs its love songs, and these romantic tracks perfectly capture the sentiment of your special day. Their sweet, heartfelt lyrics and melodies create the perfect backdrop for meaningful conversations and shared moments.",
+    
+    "Timeless Melodies": "These classic tunes bring a touch of timeless elegance to your cocktail hour. With their sophisticated sound and enduring appeal, they create a refined atmosphere that appeals to guests of all ages.",
+    
+    "Feel-Good Favorites": "These upbeat, infectious tracks inject energy and joy into your cocktail hour. Their familiar rhythms and catchy melodies will have everyone smiling and bobbing their heads as they mingle with drinks in hand.",
+    
+    "Celebration Anthems": "As your cocktail hour progresses, these celebratory songs build anticipation for the festivities ahead. With their uplifting energy and joyful vibes, they perfectly capture the excitement of your special day."
+  };
+  
+  return sectionDescriptions[section.title] || 
+    "These carefully selected songs create the perfect atmosphere for your wedding cocktail hour, bringing together the right mix of energy, emotion, and style to complement this special moment in your celebration.";
+}
+
+/**
+ * Generate a varied conclusion for the blog post
+ * @param {string} playlistName - The name of the playlist
+ * @returns {string} - A formatted conclusion
+ */
+function generateConclusion(playlistName) {
+  const conclusionTemplates = [
+    `### Why Choose This Playlist for Your Wedding?\n\nThe ${playlistName} offers the perfect balance of romantic ballads, feel-good anthems, and dance-worthy beats. It keeps the vibe light, energetic, and celebratory, allowing guests to mix, mingle, and toast to the couple without the pressure of an overwhelming dance party. Plus, the diverse mix of artists and genres ensures that everyone will find something to love, making it the ideal soundtrack to your wedding day.\n\nSo, whether you're tying the knot under a sun-dappled sky or celebrating with loved ones inside a cozy venue, this playlist will ensure your cocktail hour is one your guests will remember—and your love story will be set to the perfect soundtrack.\n\n### Ready to Play?\n\nPop this playlist on, grab a glass of champagne, and get ready to celebrate love in the best way possible. With songs that set the perfect tone, *${playlistName}* is all you need to kickstart your celebration in style!\n\n**Want to listen to the full playlist?** We've curated it for you on Spotify so you can enjoy and save it for your big day! **[Insert Spotify Playlist Link]**`,
+    
+    `### The Perfect Soundtrack for Your Big Day\n\nChoosing *${playlistName}* for your wedding cocktail hour means giving your guests an experience that's both elegant and entertaining. The carefully balanced selection ensures a sophisticated atmosphere while keeping the energy at just the right level—not too sleepy, not too overwhelming.\n\nEvery song in this playlist has been thoughtfully chosen to complement the celebratory mood of your special day, creating a seamless flow of music that enhances conversations, photo sessions, and those precious moments of anticipation before the reception begins.\n\n### Make It Yours\n\nFeel free to personalize this playlist by adding your own special songs that hold meaning for you and your partner. The beauty of a well-crafted playlist is that it can be adapted to tell your unique love story.\n\n**Want to listen to the full playlist?** We've curated it for you on Spotify so you can enjoy and save it for your big day! **[Insert Spotify Playlist Link]**`
+  ];
+  
+  // Randomly select a conclusion template
+  const randomIndex = Math.floor(Math.random() * conclusionTemplates.length);
+  return conclusionTemplates[randomIndex];
+}
