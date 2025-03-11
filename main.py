@@ -10,8 +10,8 @@ from datetime import datetime
 
 # Page configuration
 st.set_page_config(
-    page_title="Wedding DJ Blog Generator | Moments & Memories",
-    page_icon="🎵",
+    page_title="Moments & Memories Blog Generator",
+    page_icon="✨",
     layout="wide"
 )
 
@@ -28,11 +28,17 @@ st.markdown("""
     h1, h2, h3 {
         font-family: 'Playfair Display', serif;
         color: #1A2A44;
+        letter-spacing: 0.02em;
     }
 
     h1 {
-        font-weight: 600;
-        padding-bottom: 1rem;
+        font-weight: 700;
+        padding-bottom: 1.5rem;
+        font-size: 2.5rem;
+        background: linear-gradient(45deg, #D4AF37, #C19B20);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
 
     /* Buttons and interactive elements */
@@ -40,40 +46,46 @@ st.markdown("""
         background-color: #D4AF37;
         color: #1A2A44;
         border-radius: 4px;
-        padding: 0.5rem 1rem;
+        padding: 0.75rem 1.5rem;
         border: none;
         font-weight: 500;
         font-family: 'Lato', sans-serif;
-        transition: background-color 0.3s ease;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .stButton button:hover {
         background-color: #C19B20;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
 
     /* File uploader */
     .uploadedFile {
         border: 2px dashed #D4AF37;
-        border-radius: 4px;
-        padding: 1rem;
-    }
-
-    /* Sidebar */
-    .css-1d391kg {
-        background-color: #F5F5F5;
+        border-radius: 8px;
+        padding: 1.5rem;
+        background-color: rgba(212, 175, 55, 0.05);
     }
 
     /* Cards and expandable sections */
     .stExpander {
         background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border: 1px solid #F5C6CB;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border: 1px solid rgba(245, 198, 203, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .stExpander:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
     }
 
     /* Progress bars */
     .stProgress > div > div {
         background-color: #D4AF37;
+        background: linear-gradient(45deg, #D4AF37, #C19B20);
     }
 
     /* Success messages */
@@ -81,12 +93,14 @@ st.markdown("""
         background-color: rgba(212, 175, 55, 0.1);
         border-color: #D4AF37;
         color: #1A2A44;
+        border-radius: 8px;
     }
 
     /* Warning messages */
     .stWarning {
         background-color: rgba(245, 198, 203, 0.1);
         border-color: #F5C6CB;
+        border-radius: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -96,9 +110,9 @@ col1, col2 = st.columns([1, 5])
 with col1:
     st.image("https://mmweddingspa.com/wp-content/uploads/2020/01/cropped-MM-Icon.webp", width=100)
 with col2:
-    st.title("Wedding DJ Blog Generator")
+    st.title("Moments & Memories Blog Generator")
     st.markdown("""
-    <p style='font-family: Lato, sans-serif; font-size: 1.2rem; color: #1A2A44; margin-bottom: 2rem;'>
+    <p style='font-family: "Playfair Display", serif; font-size: 1.4rem; color: #1A2A44; margin-bottom: 2rem; font-weight: 400; font-style: italic;'>
     Creating Moments & Memories, One Wedding at a Time
     </p>
     """, unsafe_allow_html=True)
