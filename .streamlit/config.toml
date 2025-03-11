@@ -1,3 +1,10 @@
+[theme]
+primaryColor="#1B365D"
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#F5F5F5"
+textColor="#1B365D"
+font="sans serif"
+
 [server]
 headless = true
 address = "0.0.0.0"
