@@ -267,6 +267,38 @@ if 'df' not in st.session_state:
     st.session_state.df = None
 if 'last_saved_csv' not in st.session_state:
     st.session_state.last_saved_csv = None
+    
+# Check for previously saved CSV files at startup
+def find_latest_csv():
+    """Find the most recently modified CSV file from previous sessions"""
+    import glob
+    import os
+    from datetime import datetime
+    
+    # Look for processed CSV files
+    csv_files = glob.glob("processed_playlists_*.csv")
+    
+    if not csv_files:
+        return None
+    
+    # Get file with the latest modification time
+    latest_file = max(csv_files, key=os.path.getmtime)
+    return latest_file
+
+# Auto-load the latest CSV if available and we don't already have data
+if 'auto_loaded' not in st.session_state:
+    st.session_state.auto_loaded = False
+
+if st.session_state.df is None:
+    latest_csv = find_latest_csv()
+    if latest_csv:
+        try:
+            st.session_state.df = load_csv(latest_csv)
+            st.session_state.last_saved_csv = latest_csv
+            st.session_state.auto_loaded = True
+        except Exception:
+            # Silent exception - we'll just not auto-load if there's an issue
+            pass
 
 def save_processed_csv(df, operation_type):
     """Save CSV with timestamp and operation type"""
@@ -339,6 +371,25 @@ def main():
         os.getenv("SPOTIFY_CLIENT_ID"),
         os.getenv("SPOTIFY_CLIENT_SECRET")
     )
+    
+    # Display auto-load notification if needed
+    if st.session_state.auto_loaded and st.session_state.last_saved_csv:
+        st.markdown(f"""
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background-color: rgba(212, 175, 55, 0.1); 
+            border-radius: 12px; border-left: 4px solid #D4AF37; display: flex; align-items: center;">
+            <span style="font-size: 1.5rem; margin-right: 1rem;">🔄</span>
+            <div>
+                <p style="margin: 0; color: #1A2A44; font-weight: 500;">
+                    Previous work automatically restored from last session
+                </p>
+                <p style="margin: 0.2rem 0 0 0; font-size: 0.9rem; color: #666; opacity: 0.8;">
+                    Loaded file: {st.session_state.last_saved_csv}
+                </p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        # Reset the flag so notification only shows once
+        st.session_state.auto_loaded = False
 
     # Left sidebar for file operations
     with st.sidebar:
