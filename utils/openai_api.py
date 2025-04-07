@@ -1,18 +1,17 @@
-from openai import OpenAI
 import os
+import requests
+import json
 
-# Updated to use OpenRouter with Gemini Pro 2.5
-# OpenRouter uses the same API format as OpenAI but allows access to different models
+# Updated to use OpenRouter with Gemini Pro 2.5 via direct API requests
+# This provides better control over headers and request formatting
 
 def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     """
     Generate a formatted blog post using AI with consistent structure and style
     """
-    # Initialize OpenAI client with OpenRouter base URL
-    openai = OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        base_url="https://openrouter.ai/api/v1"  # OpenRouter base URL
-    )
+    # Using direct requests to OpenRouter instead of the OpenAI client
+    api_key = os.getenv("OPENAI_API_KEY")
+    openrouter_url = "https://openrouter.ai/api/v1/chat/completions"
 
     # Clean playlist name for display
     clean_name = playlist_name.split('Wedding Cocktail Hour')[0].strip()
@@ -65,9 +64,18 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     """
 
     try:
-        response = openai.chat.completions.create(
-            model="google/gemini-pro-2.5",  # OpenRouter model ID for Gemini Pro 2.5
-            messages=[
+        # Set up headers for OpenRouter API request
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": "https://mmweddingspa.com",  # Required by OpenRouter
+            "X-Title": "Moments & Memories Wedding Blog Generator"  # Helps with billing on OpenRouter
+        }
+        
+        # Prepare the request payload
+        payload = {
+            "model": "google/gemini-pro-2.5",  # OpenRouter model ID for Gemini Pro 2.5
+            "messages": [
                 {
                     "role": "system",
                     "content": """You are an expert wedding DJ blog writer who understands 
@@ -76,15 +84,25 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
                 },
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=2500,
-            temperature=0.7,
-            headers={
-                "HTTP-Referer": "https://mmweddingspa.com",  # Required by OpenRouter
-                "X-Title": "Moments & Memories Wedding Blog Generator"  # Helps with billing on OpenRouter
-            }
+            "max_tokens": 2500,
+            "temperature": 0.7
+        }
+        
+        # Make the API request
+        response = requests.post(
+            openrouter_url,
+            headers=headers,
+            json=payload
         )
-
-        return response.choices[0].message.content
+        
+        # Check for errors
+        if response.status_code != 200:
+            error_message = response.json().get('error', {}).get('message', f"Error {response.status_code}")
+            raise Exception(f"OpenRouter API error: {error_message}")
+            
+        # Extract and return the generated content
+        result = response.json()
+        return result['choices'][0]['message']['content']
 
     except Exception as e:
         raise Exception(f"Error generating blog post: {str(e)}")
