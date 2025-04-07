@@ -1,14 +1,18 @@
 from openai import OpenAI
 import os
 
-# the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-# do not change this unless explicitly requested by the user
+# Updated to use OpenRouter with Gemini Pro 2.5
+# OpenRouter uses the same API format as OpenAI but allows access to different models
 
 def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     """
-    Generate a formatted blog post using ChatGPT with consistent structure and style
+    Generate a formatted blog post using AI with consistent structure and style
     """
-    openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    # Initialize OpenAI client with OpenRouter base URL
+    openai = OpenAI(
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url="https://openrouter.ai/api/v1"  # OpenRouter base URL
+    )
 
     # Clean playlist name for display
     clean_name = playlist_name.split('Wedding Cocktail Hour')[0].strip()
@@ -62,7 +66,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
 
     try:
         response = openai.chat.completions.create(
-            model="gpt-4o",
+            model="google/gemini-pro-2.5",  # OpenRouter model ID for Gemini Pro 2.5
             messages=[
                 {
                     "role": "system",
@@ -73,7 +77,11 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2500,
-            temperature=0.7
+            temperature=0.7,
+            headers={
+                "HTTP-Referer": "https://mmweddingspa.com",  # Required by OpenRouter
+                "X-Title": "Moments & Memories Wedding Blog Generator"  # Helps with billing on OpenRouter
+            }
         )
 
         return response.choices[0].message.content
