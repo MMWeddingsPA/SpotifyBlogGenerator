@@ -3,6 +3,7 @@ import pandas as pd
 from utils.youtube_api import YouTubeAPI
 from utils.spotify_api import SpotifyAPI
 from utils.openai_api import generate_blog_post
+from utils.wordpress_api import WordPressAPI
 from utils.csv_handler import load_csv, save_csv
 import os
 import json
@@ -371,6 +372,12 @@ def main():
         os.getenv("SPOTIFY_CLIENT_ID"),
         os.getenv("SPOTIFY_CLIENT_SECRET")
     )
+    # Initialize WordPress API
+    wordpress_api = WordPressAPI(
+        os.getenv("WORDPRESS_API_URL"),
+        os.getenv("WORDPRESS_USERNAME"),
+        os.getenv("WORDPRESS_PASSWORD")
+    )
     
     # Display auto-load notification if needed
     if st.session_state.auto_loaded and st.session_state.last_saved_csv:
@@ -625,16 +632,84 @@ def main():
                                     <span style="color: #D4AF37; margin-right: 0.5rem;">✨</span> Generated Blog Post
                                 </h4>
                                 <p style="font-style: italic; opacity: 0.8; margin-bottom: 1rem;">
-                                    Copy the content below to use in your WordPress site
+                                    Copy the content below or post directly to WordPress
                                 </p>
                                 """, unsafe_allow_html=True)
                                 
-                                st.text_area(
+                                # Create a unique key for the session state to store blog post content
+                                blog_key = f"blog_content_{playlist}"
+                                if blog_key not in st.session_state:
+                                    st.session_state[blog_key] = results['blog_post']
+                                
+                                # Text area for blog content with option to edit
+                                st.session_state[blog_key] = st.text_area(
                                     "",
-                                    results['blog_post'],
+                                    st.session_state[blog_key],
                                     height=400,
-                                    key=f"blog_{playlist}"
+                                    key=f"blog_editor_{playlist}"
                                 )
+                                
+                                # WordPress posting section
+                                col1, col2 = st.columns([3, 1])
+                                
+                                # Input for blog post title
+                                with col1:
+                                    title_key = f"blog_title_{playlist}"
+                                    if title_key not in st.session_state:
+                                        # Generate default title based on playlist name
+                                        clean_name = playlist.split('Wedding Cocktail Hour')[0].strip()
+                                        default_title = f"The {clean_name} Wedding Cocktail Hour"
+                                        st.session_state[title_key] = default_title
+                                    
+                                    st.session_state[title_key] = st.text_input(
+                                        "Blog Post Title",
+                                        value=st.session_state[title_key],
+                                        key=f"title_input_{playlist}"
+                                    )
+                                
+                                # Button to post to WordPress
+                                with col2:
+                                    wp_button_key = f"wp_button_{playlist}"
+                                    st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
+                                    if st.button("🚀 Post to WordPress", key=wp_button_key):
+                                        with st.spinner("📝 Creating draft post in WordPress..."):
+                                            try:
+                                                # Post to WordPress as draft
+                                                result = wordpress_api.create_post(
+                                                    title=st.session_state[title_key],
+                                                    content=st.session_state[blog_key],
+                                                    status="draft"
+                                                )
+                                                
+                                                if result.get('success'):
+                                                    post_id = result.get('post_id')
+                                                    post_url = result.get('post_url')
+                                                    edit_url = result.get('edit_url')
+                                                    
+                                                    st.success("✅ Draft blog post created successfully!")
+                                                    st.markdown(f"""
+                                                    <div style="margin-top: 0.5rem; padding: 1rem; background-color: rgba(212, 175, 55, 0.1); 
+                                                        border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.3);">
+                                                        <p style="margin: 0 0 0.5rem 0; font-weight: 500; color: #1A2A44;">
+                                                            <span style="color: #D4AF37;">✨</span> Post #{post_id} created as draft
+                                                        </p>
+                                                        <p style="margin: 0 0 0.2rem 0; font-size: 0.9rem;">
+                                                            <a href="{post_url}" target="_blank" style="color: #1A2A44;">View post preview</a>
+                                                        </p>
+                                                        <p style="margin: 0; font-size: 0.9rem;">
+                                                            <a href="{edit_url}" target="_blank" style="color: #1A2A44;">Edit in WordPress</a>
+                                                        </p>
+                                                    </div>
+                                                    """, unsafe_allow_html=True)
+                                                else:
+                                                    error_msg = result.get('error', 'Unknown error')
+                                                    st.error(f"❌ Error creating WordPress post: {error_msg}")
+                                            
+                                            except Exception as e:
+                                                st.error(f"❌ Error: {str(e)}")
+
+                                # Warning about draft post status
+                                st.info("ℹ️ Posts are created as drafts and need to be reviewed before publishing.")
                                 
                             st.markdown("</div>", unsafe_allow_html=True)
                         else:
