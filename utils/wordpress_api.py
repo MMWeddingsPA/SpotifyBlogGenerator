@@ -15,6 +15,9 @@ class WordPressAPI:
         if not api_url or not username or not password:
             raise ValueError("WordPress API URL, username, and password are required")
         
+        if api_url is None or username is None or password is None:
+            raise ValueError("WordPress API URL, username, and password are required")
+            
         self.api_url = api_url.rstrip('/')
         self.username = username
         self.password = password

@@ -372,12 +372,23 @@ def main():
         os.getenv("SPOTIFY_CLIENT_ID"),
         os.getenv("SPOTIFY_CLIENT_SECRET")
     )
-    # Initialize WordPress API
-    wordpress_api = WordPressAPI(
-        os.getenv("WORDPRESS_API_URL"),
-        os.getenv("WORDPRESS_USERNAME"),
-        os.getenv("WORDPRESS_PASSWORD")
-    )
+    
+    # Initialize WordPress API with error handling
+    wordpress_api = None
+    try:
+        # Check if WordPress credentials are available
+        if all([
+            os.getenv("WORDPRESS_API_URL"),
+            os.getenv("WORDPRESS_USERNAME"),
+            os.getenv("WORDPRESS_PASSWORD")
+        ]):
+            wordpress_api = WordPressAPI(
+                os.getenv("WORDPRESS_API_URL"),
+                os.getenv("WORDPRESS_USERNAME"),
+                os.getenv("WORDPRESS_PASSWORD")
+            )
+    except Exception as e:
+        st.sidebar.warning(f"⚠️ WordPress API initialization failed: {str(e)}")
     
     # Display auto-load notification if needed
     if st.session_state.auto_loaded and st.session_state.last_saved_csv:
@@ -667,49 +678,62 @@ def main():
                                         key=f"title_input_{playlist}"
                                     )
                                 
-                                # Button to post to WordPress
+                                # WordPress posting section - only show if API is initialized
                                 with col2:
-                                    wp_button_key = f"wp_button_{playlist}"
                                     st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
-                                    if st.button("🚀 Post to WordPress", key=wp_button_key):
-                                        with st.spinner("📝 Creating draft post in WordPress..."):
-                                            try:
-                                                # Post to WordPress as draft
-                                                result = wordpress_api.create_post(
-                                                    title=st.session_state[title_key],
-                                                    content=st.session_state[blog_key],
-                                                    status="draft"
-                                                )
-                                                
-                                                if result.get('success'):
-                                                    post_id = result.get('post_id')
-                                                    post_url = result.get('post_url')
-                                                    edit_url = result.get('edit_url')
+                                    wp_button_key = f"wp_button_{playlist}"
+                                    
+                                    if wordpress_api is None:
+                                        # Show message if WordPress API is not configured
+                                        st.button("🔐 WordPress API Not Configured", key=wp_button_key, disabled=True)
+                                        with st.expander("ℹ️ Configure WordPress", expanded=False):
+                                            st.markdown("""
+                                            To enable posting to WordPress, add these environment variables:
+                                            - `WORDPRESS_API_URL`
+                                            - `WORDPRESS_USERNAME`
+                                            - `WORDPRESS_PASSWORD`
+                                            """)
+                                    else:
+                                        # Show WordPress posting button
+                                        if st.button("🚀 Post to WordPress", key=wp_button_key):
+                                            with st.spinner("📝 Creating draft post in WordPress..."):
+                                                try:
+                                                    # Post to WordPress as draft
+                                                    result = wordpress_api.create_post(
+                                                        title=st.session_state[title_key],
+                                                        content=st.session_state[blog_key],
+                                                        status="draft"
+                                                    )
                                                     
-                                                    st.success("✅ Draft blog post created successfully!")
-                                                    st.markdown(f"""
-                                                    <div style="margin-top: 0.5rem; padding: 1rem; background-color: rgba(212, 175, 55, 0.1); 
-                                                        border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.3);">
-                                                        <p style="margin: 0 0 0.5rem 0; font-weight: 500; color: #1A2A44;">
-                                                            <span style="color: #D4AF37;">✨</span> Post #{post_id} created as draft
-                                                        </p>
-                                                        <p style="margin: 0 0 0.2rem 0; font-size: 0.9rem;">
-                                                            <a href="{post_url}" target="_blank" style="color: #1A2A44;">View post preview</a>
-                                                        </p>
-                                                        <p style="margin: 0; font-size: 0.9rem;">
-                                                            <a href="{edit_url}" target="_blank" style="color: #1A2A44;">Edit in WordPress</a>
-                                                        </p>
-                                                    </div>
-                                                    """, unsafe_allow_html=True)
-                                                else:
-                                                    error_msg = result.get('error', 'Unknown error')
-                                                    st.error(f"❌ Error creating WordPress post: {error_msg}")
-                                            
-                                            except Exception as e:
-                                                st.error(f"❌ Error: {str(e)}")
-
-                                # Warning about draft post status
-                                st.info("ℹ️ Posts are created as drafts and need to be reviewed before publishing.")
+                                                    if result.get('success'):
+                                                        post_id = result.get('post_id')
+                                                        post_url = result.get('post_url')
+                                                        edit_url = result.get('edit_url')
+                                                        
+                                                        st.success("✅ Draft blog post created successfully!")
+                                                        st.markdown(f"""
+                                                        <div style="margin-top: 0.5rem; padding: 1rem; background-color: rgba(212, 175, 55, 0.1); 
+                                                            border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.3);">
+                                                            <p style="margin: 0 0 0.5rem 0; font-weight: 500; color: #1A2A44;">
+                                                                <span style="color: #D4AF37;">✨</span> Post #{post_id} created as draft
+                                                            </p>
+                                                            <p style="margin: 0 0 0.2rem 0; font-size: 0.9rem;">
+                                                                <a href="{post_url}" target="_blank" style="color: #1A2A44;">View post preview</a>
+                                                            </p>
+                                                            <p style="margin: 0; font-size: 0.9rem;">
+                                                                <a href="{edit_url}" target="_blank" style="color: #1A2A44;">Edit in WordPress</a>
+                                                            </p>
+                                                        </div>
+                                                        """, unsafe_allow_html=True)
+                                                    else:
+                                                        error_msg = result.get('error', 'Unknown error')
+                                                        st.error(f"❌ Error creating WordPress post: {error_msg}")
+                                                
+                                                except Exception as e:
+                                                    st.error(f"❌ Error: {str(e)}")
+                                        
+                                        # Warning about draft post status when WordPress is configured
+                                        st.info("ℹ️ Posts are created as drafts and need to be reviewed before publishing.")
                                 
                             st.markdown("</div>", unsafe_allow_html=True)
                         else:
