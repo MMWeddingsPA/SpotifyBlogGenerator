@@ -436,15 +436,29 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
         return False, str(e)
 
 def main():
-    # Initialize API clients
-    youtube_api = YouTubeAPI(os.getenv("YOUTUBE_API_KEY"))
-    spotify_api = SpotifyAPI(
-        os.getenv("SPOTIFY_CLIENT_ID"),
-        os.getenv("SPOTIFY_CLIENT_SECRET")
-    )
-    
-    # Initialize WordPress API with error handling
+    # Initialize API clients with error handling
+    youtube_api = None
+    spotify_api = None
     wordpress_api = None
+    
+    # YouTube API initialization
+    try:
+        youtube_api = YouTubeAPI(os.getenv("YOUTUBE_API_KEY"))
+        youtube_status = youtube_api.verify_connection()
+    except Exception as e:
+        youtube_status = False
+        st.sidebar.error(f"⚠️ YouTube API error: {str(e)}")
+    
+    # Spotify API initialization
+    try:
+        spotify_api = SpotifyAPI(
+            os.getenv("SPOTIFY_CLIENT_ID"),
+            os.getenv("SPOTIFY_CLIENT_SECRET")
+        )
+    except Exception as e:
+        st.sidebar.error(f"⚠️ Spotify API error: {str(e)}")
+    
+    # WordPress API initialization
     try:
         # Check if WordPress credentials are available
         if all([
@@ -459,6 +473,28 @@ def main():
             )
     except Exception as e:
         st.sidebar.warning(f"⚠️ WordPress API initialization failed: {str(e)}")
+        
+    # Display API status in sidebar
+    with st.sidebar:
+        st.subheader("API Status")
+        
+        # YouTube API status
+        if youtube_api and youtube_status:
+            st.success("✅ YouTube API: Connected")
+        else:
+            st.error("❌ YouTube API: Not connected")
+            
+        # Spotify API status
+        if spotify_api:
+            st.success("✅ Spotify API: Connected")
+        else:
+            st.error("❌ Spotify API: Not connected")
+            
+        # WordPress API status
+        if wordpress_api:
+            st.success("✅ WordPress API: Connected")
+        else:
+            st.warning("⚠️ WordPress API: Not connected")
     
     # Display auto-load notification if needed
     if st.session_state.auto_loaded and st.session_state.last_saved_csv:
