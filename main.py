@@ -479,6 +479,7 @@ def main():
     
     # WordPress API initialization
     try:
+        wordpress_api = None  # Initialize to None first
         # Check if WordPress credentials are available
         if all([
             os.getenv("WORDPRESS_API_URL"),
@@ -490,7 +491,12 @@ def main():
                 os.getenv("WORDPRESS_USERNAME"),
                 os.getenv("WORDPRESS_PASSWORD")
             )
+            # Debug information to verify API connection
+            st.sidebar.write(f"Debug: WordPress API URL length: {len(os.getenv('WORDPRESS_API_URL')) if os.getenv('WORDPRESS_API_URL') else 'URL not found'}")
+            st.sidebar.write(f"Debug: WordPress Username length: {len(os.getenv('WORDPRESS_USERNAME')) if os.getenv('WORDPRESS_USERNAME') else 'Username not found'}")
+            st.sidebar.write(f"Debug: WordPress Password available: {'Yes' if os.getenv('WORDPRESS_PASSWORD') else 'No'}")
     except Exception as e:
+        wordpress_api = None
         st.sidebar.warning(f"⚠️ WordPress API initialization failed: {str(e)}")
         
     # Display API status in sidebar
