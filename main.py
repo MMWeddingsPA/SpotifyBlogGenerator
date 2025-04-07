@@ -268,6 +268,8 @@ if 'df' not in st.session_state:
     st.session_state.df = None
 if 'last_saved_csv' not in st.session_state:
     st.session_state.last_saved_csv = None
+if 'auto_loaded' not in st.session_state:
+    st.session_state.auto_loaded = False
     
 # Check for previously saved CSV files at startup
 def find_latest_csv():
@@ -308,6 +310,60 @@ def save_processed_csv(df, operation_type):
     save_csv(df, filename)
     st.session_state.last_saved_csv = filename
     return filename
+
+def save_blog_post(playlist_name, blog_content, title):
+    """Save blog post to a file for persistence between sessions"""
+    # Create blogs directory if it doesn't exist
+    if not os.path.exists("blogs"):
+        os.makedirs("blogs")
+    
+    # Clean the playlist name for use in filename
+    clean_name = playlist_name.split('Wedding Cocktail Hour')[0].strip()
+    clean_name = "".join([c if c.isalnum() or c.isspace() else "_" for c in clean_name]).strip()
+    
+    # Create filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"blogs/{clean_name}_{timestamp}.html"
+    
+    # Save blog as HTML with title
+    with open(filename, "w") as f:
+        f.write(f"<h1>{title}</h1>\n\n{blog_content}")
+    
+    return filename
+
+def find_saved_blog_posts():
+    """Find all saved blog posts in the blogs directory"""
+    # Return empty list if directory doesn't exist
+    if not os.path.exists("blogs"):
+        return []
+    
+    # Get all HTML files in the blogs directory
+    blog_files = [f for f in os.listdir("blogs") if f.endswith(".html")]
+    
+    # Sort by modification time (newest first)
+    blog_files.sort(key=lambda f: os.path.getmtime(os.path.join("blogs", f)), reverse=True)
+    
+    # Return full paths to files
+    return [os.path.join("blogs", f) for f in blog_files]
+
+def load_saved_blog_post(filename):
+    """Load a saved blog post from a file"""
+    try:
+        with open(filename, "r") as f:
+            content = f.read()
+            
+        # Extract title and content
+        if "<h1>" in content and "</h1>" in content:
+            title = content.split("<h1>")[1].split("</h1>")[0]
+            blog_content = content.split("</h1>")[1].strip()
+            return title, blog_content
+        else:
+            # If no title found, use filename as title
+            basename = os.path.basename(filename)
+            title = basename.split(".")[0].replace("_", " ")
+            return title, content
+    except Exception as e:
+        return f"Error loading blog post: {str(e)}", ""
 
 def process_playlist(playlist, youtube_api, spotify_api, operations):
     """Process a single playlist with error handling and progress tracking"""
@@ -353,12 +409,26 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
         # Generate blog post if selected
         if "Blog" in operations:
             with st.spinner("✍️ Generating blog post..."):
+                # Generate the blog post
                 blog_post = generate_blog_post(
                     playlist_name=playlist,
                     songs_df=playlist_df,
                     spotify_link=results.get('spotify_link')
                 )
                 results['blog_post'] = blog_post
+                
+                # Generate a default title for the blog post
+                clean_name = playlist.split('Wedding Cocktail Hour')[0].strip()
+                default_title = f"The {clean_name} Wedding Cocktail Hour"
+                results['blog_title'] = default_title
+                
+                # Save the blog post to a file
+                saved_file = save_blog_post(
+                    playlist_name=playlist,
+                    blog_content=blog_post,
+                    title=default_title
+                )
+                results['blog_file'] = saved_file
 
         return True, results
 
@@ -419,6 +489,49 @@ def main():
             type="csv",
             help="Upload a CSV file containing your playlists"
         )
+        
+        # Saved blog posts section
+        st.markdown("---")
+        st.header("📝 Saved Blog Posts")
+        
+        # Find all saved blog posts
+        saved_blog_posts = find_saved_blog_posts()
+        
+        if saved_blog_posts:
+            st.write(f"{len(saved_blog_posts)} blog posts saved")
+            
+            # Select box for saved blog posts
+            blog_filenames = [os.path.basename(f) for f in saved_blog_posts]
+            selected_blog = st.selectbox(
+                "Select a saved blog post",
+                blog_filenames,
+                format_func=lambda x: x.replace(".html", "").replace("_", " "),
+                index=0
+            )
+            
+            # Load button for selected blog
+            if st.button("📄 Load Selected Blog Post", use_container_width=True):
+                selected_file = os.path.join("blogs", selected_blog)
+                title, content = load_saved_blog_post(selected_file)
+                
+                # Store loaded blog in session state
+                if "loaded_blog_title" not in st.session_state:
+                    st.session_state.loaded_blog_title = title
+                    st.session_state.loaded_blog_content = content
+                    st.session_state.loaded_blog_file = selected_file
+                else:
+                    st.session_state.loaded_blog_title = title
+                    st.session_state.loaded_blog_content = content
+                    st.session_state.loaded_blog_file = selected_file
+                
+                st.success(f"✅ Loaded blog post: {title}")
+        else:
+            st.info("No saved blog posts found.")
+            st.markdown("""
+            <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">
+            Blog posts will be automatically saved when you generate them.
+            </div>
+            """, unsafe_allow_html=True)
 
         # CSV Format Instructions
         with st.expander("📝 CSV Format Guide", expanded=False):
@@ -446,6 +559,124 @@ def main():
                     st.error(f"❌ Error loading saved CSV: {str(e)}")
 
     # Main content area
+    
+    # Display loaded blog post if available
+    if hasattr(st.session_state, 'loaded_blog_title') and hasattr(st.session_state, 'loaded_blog_content'):
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(245, 198, 203, 0.05) 100%); 
+            padding: 2rem; border-radius: 12px; margin-bottom: 2rem; 
+            border: 1px solid rgba(212, 175, 55, 0.2); box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
+            <h3 style="margin-top: 0; font-family: 'Playfair Display', serif; color: #1A2A44; 
+                border-bottom: 2px solid rgba(212, 175, 55, 0.3); padding-bottom: 0.8rem; margin-bottom: 1.5rem;">
+                <span style="color: #D4AF37; margin-right: 0.5rem;">📄</span> Loaded Blog Post
+            </h3>
+        """, unsafe_allow_html=True)
+        
+        # Display blog title
+        st.markdown(f"""
+        <h4 style="font-family: 'Playfair Display', serif; color: #1A2A44; 
+            margin-top: 1rem; margin-bottom: 1.5rem; font-size: 1.5rem;">
+            {st.session_state.loaded_blog_title}
+        </h4>
+        """, unsafe_allow_html=True)
+        
+        # Display file path
+        if hasattr(st.session_state, 'loaded_blog_file'):
+            st.markdown(f"""
+            <p style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem;">
+                File: {st.session_state.loaded_blog_file}
+            </p>
+            """, unsafe_allow_html=True)
+        
+        # Edit functionality
+        edited_content = st.text_area(
+            "",
+            st.session_state.loaded_blog_content,
+            height=400,
+            key="loaded_blog_content_editor"
+        )
+        
+        # Update if edited
+        if edited_content != st.session_state.loaded_blog_content:
+            st.session_state.loaded_blog_content = edited_content
+            
+        # WordPress posting button
+        col1, col2 = st.columns([3, 1])
+        
+        # Title input field
+        with col1:
+            edited_title = st.text_input(
+                "Blog Post Title",
+                value=st.session_state.loaded_blog_title,
+                key="loaded_blog_title_editor"
+            )
+            
+            # Update if edited
+            if edited_title != st.session_state.loaded_blog_title:
+                st.session_state.loaded_blog_title = edited_title
+        
+        # WordPress posting
+        with col2:
+            st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
+            
+            if wordpress_api is None:
+                # Show message if WordPress API is not configured
+                st.button("🔐 WordPress API Not Configured", key="loaded_wp_button", disabled=True)
+            else:
+                # Show WordPress posting button
+                if st.button("🚀 Post to WordPress", key="loaded_wp_button"):
+                    with st.spinner("📝 Creating draft post in WordPress..."):
+                        try:
+                            # Post to WordPress as draft
+                            result = wordpress_api.create_post(
+                                title=st.session_state.loaded_blog_title,
+                                content=st.session_state.loaded_blog_content,
+                                status="draft"
+                            )
+                            
+                            if result.get('success'):
+                                post_id = result.get('post_id')
+                                post_url = result.get('post_url')
+                                edit_url = result.get('edit_url')
+                                
+                                st.success("✅ Draft blog post created successfully!")
+                                st.markdown(f"""
+                                <div style="margin-top: 0.5rem; padding: 1rem; background-color: rgba(212, 175, 55, 0.1); 
+                                    border-radius: 8px; border: 1px solid rgba(212, 175, 55, 0.3);">
+                                    <p style="margin: 0 0 0.5rem 0; font-weight: 500; color: #1A2A44;">
+                                        <span style="color: #D4AF37;">✨</span> Post #{post_id} created as draft
+                                    </p>
+                                    <p style="margin: 0 0 0.2rem 0; font-size: 0.9rem;">
+                                        <a href="{post_url}" target="_blank" style="color: #1A2A44;">View post preview</a>
+                                    </p>
+                                    <p style="margin: 0; font-size: 0.9rem;">
+                                        <a href="{edit_url}" target="_blank" style="color: #1A2A44;">Edit in WordPress</a>
+                                    </p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                error_msg = result.get('error', 'Unknown error')
+                                st.error(f"❌ Error creating WordPress post: {error_msg}")
+                        
+                        except Exception as e:
+                            st.error(f"❌ Error: {str(e)}")
+                
+                # Warning about draft post status
+                st.info("ℹ️ Posts are created as drafts and need to be reviewed before publishing.")
+                
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Option to clear loaded blog
+        if st.button("❌ Clear Loaded Blog Post", key="clear_loaded_blog"):
+            if hasattr(st.session_state, 'loaded_blog_title'):
+                del st.session_state.loaded_blog_title
+            if hasattr(st.session_state, 'loaded_blog_content'):
+                del st.session_state.loaded_blog_content
+            if hasattr(st.session_state, 'loaded_blog_file'):
+                del st.session_state.loaded_blog_file
+            st.experimental_rerun()
+    
+    # Process CSV file if uploaded
     if uploaded_file is not None:
         try:
             st.session_state.df = load_csv(uploaded_file)
@@ -646,6 +877,10 @@ def main():
                                     Copy the content below or post directly to WordPress
                                 </p>
                                 """, unsafe_allow_html=True)
+                                
+                                # If blog post was saved to a file, show a success message
+                                if 'blog_file' in results:
+                                    st.success(f"✅ Blog post saved to {results['blog_file']} for future reference")
                                 
                                 # Create a unique key for the session state to store blog post content
                                 blog_key = f"blog_content_{playlist}"
