@@ -20,11 +20,33 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
 
+    /* Global styles and background */
+    .main {
+        background-color: #FFFFFF;
+        background-image: 
+            linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)),
+            url("https://mmweddingspa.com/wp-content/uploads/2020/01/cropped-MM-Icon.webp");
+        background-size: 400px;
+        background-repeat: repeat;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    
     /* Main text and headers */
-    .stMarkdown, .stText {
+    .stMarkdown, .stText, p, div {
         font-family: 'Lato', sans-serif;
+        color: #1A2A44;
     }
 
+    /* Page divider */
+    hr {
+        border: 0;
+        height: 1px;
+        background-image: linear-gradient(to right, rgba(212, 175, 55, 0), rgba(212, 175, 55, 0.75), rgba(212, 175, 55, 0));
+        margin: 1.5rem 0;
+    }
+
+    /* Headings */
     h1, h2, h3 {
         font-family: 'Playfair Display', serif;
         color: #1A2A44;
@@ -34,58 +56,93 @@ st.markdown("""
     h1 {
         font-weight: 700;
         padding-bottom: 1.5rem;
-        font-size: 2.5rem;
+        font-size: 2.8rem;
         background: linear-gradient(45deg, #D4AF37, #C19B20);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        margin-top: 0.5rem;
+    }
+    
+    h2 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #1A2A44;
+    }
+    
+    h3 {
+        font-size: 1.5rem;
+        font-weight: 500;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
     }
 
     /* Buttons and interactive elements */
     .stButton button {
         background-color: #D4AF37;
         color: #1A2A44;
-        border-radius: 4px;
-        padding: 0.75rem 1.5rem;
+        border-radius: 30px;
+        padding: 0.75rem 1.8rem;
         border: none;
         font-weight: 500;
         font-family: 'Lato', sans-serif;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        font-size: 1rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
     }
 
     .stButton button:hover {
         background-color: #C19B20;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
     }
 
     /* File uploader */
     .uploadedFile {
         border: 2px dashed #D4AF37;
-        border-radius: 8px;
+        border-radius: 12px;
         padding: 1.5rem;
         background-color: rgba(212, 175, 55, 0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .uploadedFile:hover {
+        border-color: #C19B20;
+        background-color: rgba(212, 175, 55, 0.08);
     }
 
     /* Cards and expandable sections */
     .stExpander {
         background-color: white;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
         border: 1px solid rgba(245, 198, 203, 0.3);
         transition: all 0.3s ease;
+        margin: 1rem 0;
     }
 
     .stExpander:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+    }
+    
+    /* Container styling */
+    [data-testid="stVerticalBlock"] {
+        padding: 0 1rem;
     }
 
     /* Progress bars */
     .stProgress > div > div {
         background-color: #D4AF37;
         background: linear-gradient(45deg, #D4AF37, #C19B20);
+        border-radius: 30px;
+        height: 10px !important;
+    }
+    
+    .stProgress {
+        height: 10px !important;
     }
 
     /* Success messages */
@@ -93,29 +150,117 @@ st.markdown("""
         background-color: rgba(212, 175, 55, 0.1);
         border-color: #D4AF37;
         color: #1A2A44;
-        border-radius: 8px;
+        border-radius: 12px;
+        padding: 1rem;
+        font-weight: 500;
     }
 
     /* Warning messages */
     .stWarning {
         background-color: rgba(245, 198, 203, 0.1);
         border-color: #F5C6CB;
+        border-radius: 12px;
+        padding: 1rem;
+    }
+    
+    /* Error messages */
+    .stError {
+        background-color: rgba(245, 198, 203, 0.2);
+        border-color: #F5C6CB;
+        color: #721c24;
+        border-radius: 12px;
+        padding: 1rem;
+    }
+    
+    /* Data tables */
+    .stDataFrame {
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    [data-testid="stDataFrameResizable"] {
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
+    /* Checkbox styling */
+    [data-testid="stCheckbox"] {
+        opacity: 0.9;
+        transition: all 0.2s ease;
+    }
+    
+    [data-testid="stCheckbox"]:hover {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #1A2A44;
+        border-right: 1px solid rgba(212, 175, 55, 0.3);
+        padding-top: 2rem;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+        padding: 0.5rem;
+    }
+    
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3, 
+    [data-testid="stSidebar"] .stMarkdown p {
+        color: #FFFFFF !important;
+    }
+    
+    [data-testid="stSidebar"] h1 {
+        background: linear-gradient(45deg, #D4AF37, #F5C6CB);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    /* Text areas and input fields */
+    .stTextArea textarea, .stTextInput input {
         border-radius: 8px;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        padding: 1rem;
+        font-family: 'Lato', sans-serif;
+        transition: all 0.3s ease;
+    }
+    
+    .stTextArea textarea:focus, .stTextInput input:focus {
+        border-color: #D4AF37;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+    }
+    
+    /* Multiselect */
+    .stMultiSelect {
+        border-radius: 8px;
+    }
+    
+    /* Text area for blog post */
+    [data-baseweb="textarea"] {
+        font-family: 'Lato', sans-serif !important;
+        line-height: 1.6 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Add logo and header
-col1, col2 = st.columns([1, 5])
-with col1:
-    st.image("https://mmweddingspa.com/wp-content/uploads/2020/01/cropped-MM-Icon.webp", width=100)
-with col2:
-    st.title("Moments & Memories Blog Generator")
-    st.markdown("""
-    <p style='font-family: "Playfair Display", serif; font-size: 1.4rem; color: #1A2A44; margin-bottom: 2rem; font-weight: 400; font-style: italic;'>
-    Creating Moments & Memories, One Wedding at a Time
-    </p>
-    """, unsafe_allow_html=True)
+# Add elegant header with logo
+st.markdown("""
+<div style="display: flex; align-items: center; padding: 1.5rem 0; margin-bottom: 2rem; border-bottom: 1px solid rgba(212, 175, 55, 0.3);">
+    <img src="https://mmweddingspa.com/wp-content/uploads/2020/01/cropped-MM-Icon.webp" style="width: 120px; margin-right: 2rem; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));">
+    <div>
+        <h1 style="margin-bottom: 0.2rem; margin-top: 0;">Moments & Memories</h1>
+        <p style="font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #1A2A44; margin-bottom: 0; font-weight: 400; font-style: italic; letter-spacing: 0.05em;">
+            Blog Generator
+        </p>
+        <p style="font-family: 'Lato', sans-serif; font-size: 1rem; color: #1A2A44; margin-top: 0.5rem; opacity: 0.8;">
+            Creating Moments & Memories, One Wedding at a Time
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # Initialize session state
 if 'df' not in st.session_state:
@@ -240,23 +385,44 @@ def main():
             total_playlists = st.session_state.df['Playlist'].nunique()
             total_songs = len(st.session_state.df)
 
-            # Stats cards
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"""
-                <div style='background-color: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
-                    <h3 style='margin: 0; color: #1B365D;'>📊 Playlists</h3>
-                    <p style='font-size: 2rem; margin: 0; color: #1B365D;'>{total_playlists}</p>
+            # Stats cards with enhanced styling
+            st.markdown("""
+            <div style="display: flex; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap;">
+            """, unsafe_allow_html=True)
+            
+            # Playlist card
+            st.markdown(f"""
+            <div style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #FFFFFF 0%, #F9F9F9 100%); 
+                padding: 1.5rem; border-radius: 12px; box-shadow: 0 10px 20px rgba(26, 42, 68, 0.07); 
+                border-left: 5px solid #D4AF37; transition: all 0.3s ease;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.7rem;">
+                    <span style="background-color: rgba(212, 175, 55, 0.15); padding: 0.5rem; border-radius: 50%; margin-right: 0.8rem;">
+                        <span style="font-size: 1.2rem;">📊</span>
+                    </span>
+                    <h3 style="margin: 0; color: #1A2A44; font-family: 'Playfair Display', serif; font-weight: 600;">Playlists</h3>
                 </div>
-                """, unsafe_allow_html=True)
-
-            with col2:
-                st.markdown(f"""
-                <div style='background-color: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
-                    <h3 style='margin: 0; color: #1B365D;'>🎵 Songs</h3>
-                    <p style='font-size: 2rem; margin: 0; color: #1B365D;'>{total_songs}</p>
+                <p style="font-size: 2.5rem; margin: 0.5rem 0 0 0; color: #1A2A44; font-weight: 600;">{total_playlists}</p>
+                <p style="margin: 0.2rem 0 0 0; font-size: 0.9rem; color: #666; opacity: 0.8;">Ready to process</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Songs card
+            st.markdown(f"""
+            <div style="flex: 1; min-width: 200px; background: linear-gradient(135deg, #FFFFFF 0%, #F9F9F9 100%); 
+                padding: 1.5rem; border-radius: 12px; box-shadow: 0 10px 20px rgba(26, 42, 68, 0.07); 
+                border-left: 5px solid #F5C6CB; transition: all 0.3s ease;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.7rem;">
+                    <span style="background-color: rgba(245, 198, 203, 0.15); padding: 0.5rem; border-radius: 50%; margin-right: 0.8rem;">
+                        <span style="font-size: 1.2rem;">🎵</span>
+                    </span>
+                    <h3 style="margin: 0; color: #1A2A44; font-family: 'Playfair Display', serif; font-weight: 600;">Songs</h3>
                 </div>
-                """, unsafe_allow_html=True)
+                <p style="font-size: 2.5rem; margin: 0.5rem 0 0 0; color: #1A2A44; font-weight: 600;">{total_songs}</p>
+                <p style="margin: 0.2rem 0 0 0; font-size: 0.9rem; color: #666; opacity: 0.8;">Total songs across all playlists</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""</div>""", unsafe_allow_html=True)
 
         except Exception as e:
             st.error(f"❌ Error loading CSV: {str(e)}")
@@ -267,66 +433,174 @@ def main():
         st.header("🎵 Available Playlists")
         playlists = st.session_state.df['Playlist'].unique()
 
+        # Elegant playlist selection section
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(245, 198, 203, 0.05) 100%); 
+            padding: 2rem; border-radius: 12px; margin-bottom: 2rem; 
+            border: 1px solid rgba(212, 175, 55, 0.2); box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
+            <h3 style="margin-top: 0; font-family: 'Playfair Display', serif; color: #1A2A44; 
+                border-bottom: 2px solid rgba(212, 175, 55, 0.3); padding-bottom: 0.8rem; margin-bottom: 1.5rem;">
+                Select Playlists & Operations
+            </h3>
+        """, unsafe_allow_html=True)
+        
         # Create columns for playlist selection and operations
         col1, col2 = st.columns([2, 1])
 
         with col1:
+            st.markdown("""
+            <p style="font-weight: 500; margin-bottom: 0.5rem; color: #1A2A44;">
+                <span style="background-color: rgba(212, 175, 55, 0.15); padding: 0.3rem 0.5rem; border-radius: 4px; margin-right: 0.5rem;">
+                    🎵
+                </span>
+                Select playlists to process:
+            </p>
+            """, unsafe_allow_html=True)
+            
             selected_playlists = st.multiselect(
-                "Select playlists to process",
+                "",
                 playlists,
                 format_func=lambda x: x.split("Wedding Cocktail Hour")[0].strip()
             )
 
         with col2:
-            st.markdown("### Operations")
+            st.markdown("""
+            <p style="font-weight: 500; margin-bottom: 0.5rem; color: #1A2A44;">
+                <span style="background-color: rgba(212, 175, 55, 0.15); padding: 0.3rem 0.5rem; border-radius: 4px; margin-right: 0.5rem;">
+                    ⚙️
+                </span>
+                Operations:
+            </p>
+            """, unsafe_allow_html=True)
+            
             fetch_youtube = st.checkbox("🎥 Fetch YouTube Links", value=True)
             fetch_spotify = st.checkbox("🎧 Fetch Spotify Playlist", value=True)
             generate_blog = st.checkbox("✍️ Generate Blog Post", value=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Action buttons container
+        if selected_playlists:
+            st.markdown("""
+            <div style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+            """, unsafe_allow_html=True)
+            
+            # Preview button
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                preview_button = st.button("👁️ Preview Selected Playlists", use_container_width=True)
+            
+            # Process button
+            with col2:
+                process_button = st.button("🚀 Process Selected Playlists", use_container_width=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            # Preview section
+            if preview_button:
+                for playlist in selected_playlists:
+                    clean_name = playlist.split('Wedding Cocktail Hour')[0].strip()
+                    with st.expander(f"Preview: {clean_name}", expanded=True):
+                        st.markdown(f"""
+                        <p style="color: #1A2A44; font-family: 'Playfair Display', serif; 
+                        font-size: 1.2rem; font-style: italic; margin-bottom: 1rem;">
+                        Showing songs from <span style="color: #D4AF37; font-weight: 500;">{clean_name}</span>
+                        </p>
+                        """, unsafe_allow_html=True)
+                        
+                        playlist_df = st.session_state.df[st.session_state.df['Playlist'] == playlist]
+                        st.dataframe(
+                            playlist_df[['Song', 'Artist', 'YouTube_Link']],
+                            hide_index=True,
+                            use_container_width=True
+                        )
 
-        # Preview button for selected playlists
-        if selected_playlists and st.button("👁️ Preview Selected Playlists"):
-            for playlist in selected_playlists:
-                with st.expander(f"Preview: {playlist.split('Wedding Cocktail Hour')[0].strip()}", expanded=True):
-                    playlist_df = st.session_state.df[
-                        st.session_state.df['Playlist'] == playlist
-                    ]
-                    st.dataframe(
-                        playlist_df[['Song', 'Artist', 'YouTube_Link']],
-                        hide_index=True
-                    )
+            # Process section
+            if process_button:
+                operations = []
+                if fetch_youtube: operations.append("YouTube")
+                if fetch_spotify: operations.append("Spotify")
+                if generate_blog: operations.append("Blog")
 
-        # Process button
-        if selected_playlists and st.button("🚀 Process Selected Playlists"):
-            operations = []
-            if fetch_youtube: operations.append("YouTube")
-            if fetch_spotify: operations.append("Spotify")
-            if generate_blog: operations.append("Blog")
+                if not operations:
+                    st.warning("⚠️ Please select at least one operation to perform.")
+                    return
+                    
+                # Display selected operations
+                ops_text = ", ".join([f"{op}" for op in operations])
+                st.markdown(f"""
+                <div style="margin-bottom: 1.5rem; padding: 1rem; background-color: rgba(212, 175, 55, 0.08); 
+                    border-radius: 8px; border-left: 4px solid #D4AF37;">
+                    <p style="margin: 0; color: #1A2A44; font-weight: 500;">
+                        <span style="color: #D4AF37; margin-right: 0.5rem;">⚙️</span>
+                        Processing operations: {ops_text}
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
 
-            if not operations:
-                st.warning("⚠️ Please select at least one operation to perform.")
-                return
+                # Process each playlist
+                for playlist in selected_playlists:
+                    clean_name = playlist.split('Wedding Cocktail Hour')[0].strip()
+                    with st.expander(f"Processing: {clean_name}", expanded=True):
+                        success, results = process_playlist(playlist, youtube_api, spotify_api, operations)
 
-            # Process each playlist
-            for playlist in selected_playlists:
-                with st.expander(f"Processing: {playlist.split('Wedding Cocktail Hour')[0].strip()}", expanded=True):
-                    success, results = process_playlist(playlist, youtube_api, spotify_api, operations)
+                        if success:
+                            # Create a more attractive results display
+                            st.markdown("""
+                            <div style="margin-top: 1rem; margin-bottom: 1rem;">
+                            """, unsafe_allow_html=True)
+                            
+                            if 'youtube_file' in results:
+                                st.success(f"✅ YouTube links updated and saved to {results['youtube_file']}")
+                                
+                            if 'spotify_link' in results:
+                                st.markdown(f"""
+                                <div style="margin: 1rem 0; padding: 1rem; background-color: rgba(245, 198, 203, 0.1); 
+                                    border-radius: 8px; border: 1px solid rgba(245, 198, 203, 0.3);">
+                                    <p style="margin: 0; display: flex; align-items: center;">
+                                        <span style="font-size: 1.5rem; margin-right: 1rem;">🎧</span>
+                                        <span>
+                                            <strong style="display: block; color: #1A2A44;">Spotify Playlist Link:</strong>
+                                            <a href="{results['spotify_link']}" target="_blank">{results['spotify_link']}</a>
+                                        </span>
+                                    </p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                            if 'blog_post' in results:
+                                st.markdown("""
+                                <h4 style="font-family: 'Playfair Display', serif; color: #1A2A44; 
+                                    margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                                    <span style="color: #D4AF37; margin-right: 0.5rem;">✨</span> Generated Blog Post
+                                </h4>
+                                <p style="font-style: italic; opacity: 0.8; margin-bottom: 1rem;">
+                                    Copy the content below to use in your WordPress site
+                                </p>
+                                """, unsafe_allow_html=True)
+                                
+                                st.text_area(
+                                    "",
+                                    results['blog_post'],
+                                    height=400,
+                                    key=f"blog_{playlist}"
+                                )
+                                
+                            st.markdown("</div>", unsafe_allow_html=True)
+                        else:
+                            st.error(f"❌ Error processing playlist: {results}")
 
-                    if success:
-                        if 'youtube_file' in results:
-                            st.success(f"✅ YouTube links updated and saved to {results['youtube_file']}")
-                        if 'spotify_link' in results:
-                            st.success(f"🎧 Spotify playlist link: {results['spotify_link']}")
-                        if 'blog_post' in results:
-                            st.text_area(
-                                "📝 Copy the blog post below:",
-                                results['blog_post'],
-                                height=400,
-                                key=f"blog_{playlist}"
-                            )
-                    else:
-                        st.error(f"❌ Error processing playlist: {results}")
-
-            st.success("✨ All selected playlists processed successfully!")
+                # Success message at the end
+                st.markdown("""
+                <div style="margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(245, 198, 203, 0.1) 100%); 
+                    border-radius: 12px; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.05);">
+                    <h3 style="margin: 0; color: #1A2A44; font-family: 'Playfair Display', serif; font-weight: 600;">
+                        <span style="color: #D4AF37; margin-right: 0.5rem;">✨</span> All Selected Playlists Processed Successfully!
+                    </h3>
+                    <p style="margin-top: 0.5rem; margin-bottom: 0; opacity: 0.8;">
+                        Your content is ready to be shared with the world.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
