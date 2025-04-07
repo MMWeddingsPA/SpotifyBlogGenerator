@@ -443,10 +443,22 @@ def main():
     
     # YouTube API initialization
     try:
-        youtube_api = YouTubeAPI(os.getenv("YOUTUBE_API_KEY"))
-        youtube_status = youtube_api.verify_connection()
+        youtube_key = os.getenv("YOUTUBE_API_KEY")
+        st.sidebar.write(f"Debug: YouTube API key length: {len(youtube_key) if youtube_key else 'Key not found'}")
+        
+        if not youtube_key:
+            st.sidebar.error("⚠️ YouTube API key is missing. Please check your environment variables.")
+            youtube_api = None
+            youtube_status = False
+            youtube_message = "API key missing"
+        else:
+            youtube_api = YouTubeAPI(youtube_key)
+            youtube_status, youtube_message = youtube_api.verify_connection()
+            st.sidebar.write(f"Debug: YouTube API verification result: {youtube_status}, Message: {youtube_message}")
     except Exception as e:
+        youtube_api = None
         youtube_status = False
+        youtube_message = str(e)
         st.sidebar.error(f"⚠️ YouTube API error: {str(e)}")
     
     # Spotify API initialization
@@ -482,7 +494,9 @@ def main():
         if youtube_api and youtube_status:
             st.success("✅ YouTube API: Connected")
         else:
-            st.error("❌ YouTube API: Not connected")
+            st.error(f"❌ YouTube API: Not connected")
+            if 'youtube_message' in locals():
+                st.error(f"Reason: {youtube_message}")
             
         # Spotify API status
         if spotify_api:

@@ -14,15 +14,22 @@ class YouTubeAPI:
         """
         try:
             # Make a simple API call to verify the key works
-            self.youtube.videos().list(
+            response = self.youtube.videos().list(
                 part='snippet',
                 chart='mostPopular',
                 maxResults=1,
                 regionCode='US'
             ).execute()
-            return True
+            
+            # Check if we got any items in the response
+            if 'items' in response and len(response['items']) > 0:
+                # Return the full response for debugging
+                return True, "API connection successful"
+            else:
+                return False, "API returned empty response"
+                
         except Exception as e:
-            return False
+            return False, f"API error: {str(e)}"
 
     def get_video_link(self, search_query):
         """
