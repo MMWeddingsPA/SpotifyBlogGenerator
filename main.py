@@ -16,6 +16,13 @@ st.set_page_config(
     layout="wide"
 )
 
+# Make sure API keys are properly accessible
+if "OPENAI_API_KEY" in os.environ:
+    # Don't show the actual key, just that it exists
+    print("OPENAI_API_KEY found in environment variables")
+else:
+    print("OPENAI_API_KEY NOT found in environment variables")
+
 # Custom CSS to match Moments & Memories branding
 st.markdown("""
 <style>

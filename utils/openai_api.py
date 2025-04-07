@@ -1,17 +1,15 @@
 import os
-import requests
-import json
+from openai import OpenAI
 
-# Updated to use OpenRouter with Gemini Pro 2.5 via direct API requests
-# This provides better control over headers and request formatting
+# Updated to use standard OpenAI API with GPT-4o (since Gemini integration is having issues)
+# This is a temporary fallback to ensure functionality
 
 def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     """
     Generate a formatted blog post using AI with consistent structure and style
     """
-    # Using direct requests to OpenRouter instead of the OpenAI client
-    api_key = os.getenv("OPENAI_API_KEY")
-    openrouter_url = "https://openrouter.ai/api/v1/chat/completions"
+    # Use standard OpenAI client with GPT-4o
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     # Clean playlist name for display
     clean_name = playlist_name.split('Wedding Cocktail Hour')[0].strip()
@@ -64,18 +62,19 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     """
 
     try:
-        # Set up headers for OpenRouter API request
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-            "HTTP-Referer": "https://mmweddingspa.com",  # Required by OpenRouter
-            "X-Title": "Moments & Memories Wedding Blog Generator"  # Helps with billing on OpenRouter
-        }
-        
-        # Prepare the request payload
-        payload = {
-            "model": "google/gemini-pro-2.5",  # OpenRouter model ID for Gemini Pro 2.5
-            "messages": [
+        # Debug API key (only showing if it exists, not the actual value)
+        if client.api_key:
+            print(f"OpenAI API Key exists: True (length: {len(client.api_key)})")
+        else:
+            print("OpenAI API Key does not exist")
+            raise Exception("OpenAI API key not found in environment variables. Please check the OPENAI_API_KEY secret.")
+            
+        # Using the standard OpenAI GPT-4o model for better reliability
+        # gpt-4o is the newest OpenAI model released after knowledge cutoff
+        # do not change this unless explicitly requested by the user
+        response = client.chat.completions.create(
+            model="gpt-4o",  # Using the latest OpenAI model
+            messages=[
                 {
                     "role": "system",
                     "content": """You are an expert wedding DJ blog writer who understands 
@@ -84,25 +83,12 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
                 },
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": 2500,
-            "temperature": 0.7
-        }
-        
-        # Make the API request
-        response = requests.post(
-            openrouter_url,
-            headers=headers,
-            json=payload
+            max_tokens=2500,
+            temperature=0.7
         )
         
-        # Check for errors
-        if response.status_code != 200:
-            error_message = response.json().get('error', {}).get('message', f"Error {response.status_code}")
-            raise Exception(f"OpenRouter API error: {error_message}")
-            
-        # Extract and return the generated content
-        result = response.json()
-        return result['choices'][0]['message']['content']
+        # Return the generated content
+        return response.choices[0].message.content
 
     except Exception as e:
         raise Exception(f"Error generating blog post: {str(e)}")
