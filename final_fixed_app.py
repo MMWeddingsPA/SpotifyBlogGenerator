@@ -226,14 +226,19 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
         # Fetch Spotify playlist if selected
         if "Spotify" in operations and spotify_api:
             with st.spinner("🎧 Fetching Spotify playlist link..."):
-                # Try to get the playlist link
-                user_id = "12167600836"  # Hardcoded user ID for the wedding DJ
-                
-                # Clean the playlist name for Spotify search by removing numeric prefix
-                spotify_clean_name = spotify_api.clean_playlist_name(playlist)
-                spotify_clean_name = re.sub(r'^\d{3}\s+', '', spotify_clean_name)
-                
-                spotify_link = spotify_api.get_playlist_link(user_id, spotify_clean_name)
+                try:
+                    # Use the DJ's actual Spotify username (not numeric ID)
+                    user_id = "momentsandmemoriesdj"  # The correct username for Moments & Memories
+                    
+                    # Clean the playlist name for Spotify search - just use one cleaning method
+                    # Don't clean it twice as that can cause too much difference from actual Spotify names
+                    spotify_clean_name = re.sub(r'^\d{3}\s+', '', playlist)
+                    
+                    st.info(f"Searching for Spotify playlist: '{spotify_clean_name}'")
+                    spotify_link = spotify_api.get_playlist_link(user_id, spotify_clean_name)
+                except Exception as e:
+                    st.error(f"Error with Spotify API: {str(e)}")
+                    spotify_link = None
                 
                 if spotify_link:
                     results['spotify_link'] = spotify_link
