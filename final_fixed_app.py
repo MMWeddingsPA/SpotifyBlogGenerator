@@ -40,6 +40,18 @@ st.markdown("""
         font-size: 2.5rem;
         color: #D4AF37;
     }
+    
+    /* Fix scrolling issues */
+    .main .block-container {
+        padding-bottom: 5rem;
+        max-width: 95%;
+    }
+    
+    /* Ensure containers can scroll properly */
+    .stExpander {
+        overflow: auto;
+        max-height: 600px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -487,7 +499,7 @@ def main():
                                         
                                         # Show the blog content in a text area
                                         blog_content = results['blog_post']
-                                        st.text_area("", blog_content, height=400)
+                                        st.text_area("", blog_content, height=300)
                                         
                                         # WordPress posting section
                                         blog_title = results.get('blog_title', '')
@@ -649,7 +661,7 @@ def main():
                 
                 # Display the title and content
                 st.write(f"### {title}")
-                st.text_area("Blog Content", content, height=400)
+                st.text_area("Blog Content", content, height=300)
                 
                 # WordPress posting section
                 if wordpress_api:
