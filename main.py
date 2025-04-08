@@ -490,6 +490,7 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
         return False, {}
 
 def main():
+    print("Starting main function")
     # Initialize API clients with error handling
     youtube_api = None
     spotify_api = None
@@ -941,31 +942,28 @@ def main():
                 if 'Spotify_Link' in edit_df.columns:
                     edit_columns.append('Spotify_Link')
                 
-                # Create a editable dataframe
-                edited_df = st.data_editor(
+                # Display the dataframe first, then we'll add the editor functionality later
+                st.dataframe(
                     edit_df[edit_columns],
-                    num_rows="dynamic", 
                     use_container_width=True,
-                    hide_index=True,
-                    key=f"editor_{selected_edit_playlist.replace(' ', '_')}"
+                    hide_index=True
                 )
+                
+                # Placeholder for the editable dataframe - commented out for now
+                # edited_df = st.data_editor(
+                #     edit_df[edit_columns],
+                #     num_rows="dynamic", 
+                #     use_container_width=True,
+                #     hide_index=True,
+                #     key=f"editor_{selected_edit_playlist.replace(' ', '_')}"
+                # )
                 
                 # Save button with styling
                 if st.button("💾 Save Changes", use_container_width=True, key="save_csv_edits"):
                     try:
-                        # Update the main dataframe with edits
-                        for idx, row in edited_df.iterrows():
-                            for col in edit_columns:
-                                st.session_state.df.loc[
-                                    (st.session_state.df['Playlist'] == selected_edit_playlist) & 
-                                    (st.session_state.df.index == idx), 
-                                    col
-                                ] = row[col]
-                        
-                        # Save updated dataframe to CSV
+                        # Since we've disabled the data_editor for now, just save the current dataframe
                         filename = save_processed_csv(st.session_state.df, "edited")
-                        
-                        st.success(f"✅ Changes saved successfully to {filename}!")
+                        st.success(f"✅ CSV file saved to {filename}!")
                     except Exception as e:
                         st.error(f"❌ Error saving changes: {str(e)}")
                 
@@ -1292,4 +1290,11 @@ def main():
                 """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    main()
+    print("Starting application")
+    try:
+        main()
+        print("Main function completed successfully")
+    except Exception as e:
+        print(f"Error in main function: {str(e)}")
+        import traceback
+        traceback.print_exc()
