@@ -140,8 +140,8 @@ def load_saved_blog_post(filename):
         st.error(f"Error loading blog post: {str(e)}")
         return "Error", f"Could not load blog post: {str(e)}"
 
-def clean_playlist_name(playlist_name):
-    """Remove the numeric prefix from playlist names"""
+def clean_playlist_name_for_blog(playlist_name):
+    """Remove the numeric prefix from playlist names when creating blog posts"""
     import re
     # Remove the numeric prefix (like "001 ") 
     cleaned = re.sub(r'^\d{3}\s+', '', playlist_name)
@@ -218,10 +218,10 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                 user_id = "12167600836"  # Hardcoded user ID for the wedding DJ
                 
                 # Clean the playlist name for Spotify search by removing numeric prefix
-                clean_playlist_name = spotify_api.clean_playlist_name(playlist)
-                clean_playlist_name = re.sub(r'^\d{3}\s+', '', clean_playlist_name)
+                spotify_clean_name = spotify_api.clean_playlist_name(playlist)
+                spotify_clean_name = re.sub(r'^\d{3}\s+', '', spotify_clean_name)
                 
-                spotify_link = spotify_api.get_playlist_link(user_id, clean_playlist_name)
+                spotify_link = spotify_api.get_playlist_link(user_id, spotify_clean_name)
                 
                 if spotify_link:
                     results['spotify_link'] = spotify_link
@@ -261,18 +261,18 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                         spotify_link = spotify_links.iloc[0]
                 
                 # Clean the playlist name for the blog post (remove numeric prefix)
-                clean_playlist_name = clean_playlist_name(playlist)
+                clean_name = clean_playlist_name_for_blog(playlist)
                 
                 # Generate the blog post
                 blog_post = generate_blog_post(
-                    playlist_name=clean_playlist_name,
+                    playlist_name=clean_name,
                     songs_df=playlist_df,
                     spotify_link=spotify_link
                 )
                 results['blog_post'] = blog_post
                 
                 # Generate a default title for the blog post
-                title_base = clean_playlist_name.split('Wedding Cocktail Hour')[0].strip()
+                title_base = clean_name.split('Wedding Cocktail Hour')[0].strip()
                 default_title = f"The {title_base} Wedding Cocktail Hour"
                 results['blog_title'] = default_title
                 
@@ -434,14 +434,12 @@ def main():
         if st.session_state.df is not None:
             playlists = st.session_state.df['Playlist'].unique()
             
-            # Format the playlist names for display (remove numeric prefixes)
-            display_names = {p: re.sub(r'^\d{3}\s+', '', p) for p in playlists}
+            # Keep the numeric prefixes in the display names
             
             # Playlist selection and operations
             selected_playlists = st.multiselect(
                 "Select playlists to process:", 
-                options=playlists,
-                format_func=lambda x: display_names[x]
+                options=playlists
             )
             
             # Operations selection
@@ -467,7 +465,7 @@ def main():
                     else:
                         # Process each playlist
                         for playlist in selected_playlists:
-                            with st.expander(f"Processing: {display_names[playlist]}", expanded=True):
+                            with st.expander(f"Processing: {playlist}", expanded=True):
                                 success, results = process_playlist(playlist, youtube_api, spotify_api, operations)
                                 
                                 if success:
