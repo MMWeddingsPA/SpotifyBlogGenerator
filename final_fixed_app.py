@@ -385,7 +385,60 @@ def main():
             
         # WordPress API status
         if wordpress_api:
-            st.success("✅ WordPress API: Connected")
+            if wordpress_api.test_connection():
+                st.success("✅ WordPress API: Connected and authenticated")
+            else:
+                st.warning("⚠️ WordPress API: Connection issues")
+                
+                # Add WordPress troubleshooting expander
+                with st.expander("WordPress Troubleshooting Tools"):
+                    st.info("Diagnosing WordPress connection issues...")
+                    
+                    # Show formatted API URL
+                    wp_url = os.environ.get("WORDPRESS_API_URL", "").strip()
+                    wp_username = os.environ.get("WORDPRESS_USERNAME", "").strip()
+                    wp_password = os.environ.get("WORDPRESS_PASSWORD", "").strip()
+                    
+                    st.markdown("### WordPress Connection Info")
+                    st.info(f"API URL: `{wp_url}`")
+                    
+                    # Check how API URL is being formatted
+                    if not wp_url.startswith('http'):
+                        st.warning("⚠️ URL does not start with http or https")
+                    
+                    # Check if URL already ends with /wp-json
+                    if wp_url.endswith('/wp-json'):
+                        st.warning("⚠️ URL should not end with /wp-json - this is added automatically")
+                    
+                    # Check if credentials look correct
+                    if len(wp_username) < 2:
+                        st.error("❌ Username is too short or empty")
+                    else:
+                        st.info(f"Username length: {len(wp_username)} characters")
+                    
+                    if len(wp_password) < 2:
+                        st.error("❌ Password is too short or empty")
+                    else:
+                        st.info(f"Password length: {len(wp_password)} characters")
+                    
+                    # Application password check
+                    if ' ' in wp_password:
+                        st.info("📝 Using WordPress Application Password (contains spaces)")
+                        segments = wp_password.split()
+                        if all(len(s) == 4 for s in segments):
+                            st.success("✅ Application password format looks correct")
+                        else:
+                            segment_lengths = [len(s) for s in segments]
+                            st.warning(f"⚠️ Application password segments should be 4 characters each. Current segments: {segment_lengths}")
+                    else:
+                        st.info("📝 Using standard password (no spaces detected)")
+                    
+                    # Button to run complete WordPress diagnostics
+                    if st.button("🔍 Run Full WordPress Diagnostics"):
+                        with st.spinner("Running comprehensive WordPress diagnostics..."):
+                            wordpress_api.diagnose_connection()
+                            st.info("✅ Diagnostic information logged to the console")
+                            st.info("Please check the application logs for detailed results")
             
             # Add WordPress test post button
             if st.button("🧪 Test WordPress Post"):
@@ -393,13 +446,17 @@ def main():
                     try:
                         result = wordpress_api.create_test_post()
                         if result.get('success'):
-                            st.success("✅ Test post created successfully!")
+                            st.success(f"✅ Test post created successfully! ID: {result.get('post_id')}")
+                            if result.get('edit_url'):
+                                st.markdown(f"[View Post on WordPress]({result.get('edit_url')})")
                         else:
                             st.error(f"❌ Test post failed: {result.get('error')}")
                     except Exception as e:
                         st.error(f"❌ Error creating test post: {str(e)}")
         else:
             st.error("❌ WordPress API: Not connected")
+            # Show missing WordPress API details
+            st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables")
     
     # Create tabs for different functions
     tab1, tab2, tab3 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts"])

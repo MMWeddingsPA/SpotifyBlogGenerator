@@ -25,11 +25,24 @@ class WordPressAPI:
         logger.info(f"Username length: {len(username)}")
         logger.info(f"Password available: {'Yes' if password else 'No'}")
         
-        # Ensure HTTPS protocol
+        # Verify that the credentials look correct
+        if len(username) < 1:
+            raise ValueError("WordPress username cannot be empty")
+        if len(password) < 1:
+            raise ValueError("WordPress password cannot be empty")
+            
+        # Validate and clean the WordPress URL 
         if not api_url.startswith('http'):
             api_url = f"https://{api_url}"
         elif api_url.startswith('http://'):
             api_url = api_url.replace('http://', 'https://')
+        
+        # Make sure URL doesn't have trailing `/wp-json`
+        if api_url.endswith('/wp-json'):
+            api_url = api_url[:-8]  # Remove trailing /wp-json
+        
+        # Strip any trailing slashes for consistency
+        api_url = api_url.rstrip('/')
             
         # Clean the base URL and set the API endpoint
         self.base_url = api_url.rstrip('/')
@@ -54,36 +67,63 @@ class WordPressAPI:
         logger.info(f"Using standard headers: {json.dumps(self.standard_headers)}")
         
     def _get_auth_header(self):
-        """Create authorization header using basic auth for WordPress"""
-        # WordPress uses standard HTTP Basic Authentication for the REST API
-        # This needs to be formatted very carefully
-        
+        """Create authorization header using WordPress application password format"""
         try:
-            # Use raw credentials without URL encoding for basic auth
-            auth_string = f"{self.username}:{self.password}"
+            # Check if the password looks like an application password (usually contains spaces)
+            is_app_password = ' ' in self.password
             
-            # Log credential format (without exposing the actual values)
-            logger.info(f"Using basic auth credentials with username length: {len(self.username)}")
-            
-            # This is the standard Basic Auth encoding with base64
-            encoded = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-            auth_header = {'Authorization': f'Basic {encoded}'}
-            
-            # Log auth header format (without exposing the actual token)
-            logger.info(f"Auth header format: Authorization: Basic [base64 token]")
-            
-            # Check if the token seems unusual or problematic
-            if len(encoded) < 10:
-                logger.warning(f"Auth token is unusually short ({len(encoded)} chars), possible encoding issue")
-            
-            # Log first few characters to help with debugging (without exposing the whole token)
-            token_preview = encoded[:5] + "..." if len(encoded) > 5 else encoded
-            logger.info(f"Auth token preview (first 5 chars): {token_preview}")
-            
-            return auth_header
+            if is_app_password:
+                logger.info("Password appears to be a WordPress Application Password (contains spaces)")
+                # For application passwords, we need to handle the format correctly
+                # The spaces need to be preserved in the encoding
+                
+                # Log credential format (without exposing the actual values)
+                logger.info(f"Using application password auth with username length: {len(self.username)}")
+                
+                # WordPress application passwords use the username in full and the application password as provided
+                auth_string = f"{self.username}:{self.password}"
+                
+                # This is the standard Basic Auth encoding with base64, but preserving spaces
+                encoded = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                
+                # Check if the token seems unusual or problematic
+                if len(encoded) < 10:
+                    logger.warning(f"Auth token is unusually short ({len(encoded)} chars), possible encoding issue")
+                
+                # Log first few characters to help with debugging (without exposing the whole token)
+                token_preview = encoded[:5] + "..." if len(encoded) > 5 else encoded
+                logger.info(f"Auth token preview (first 5 chars): {token_preview}")
+                
+                # Return WordPress application password format
+                return {'Authorization': f'Basic {encoded}'}
+            else:
+                # For regular passwords (not application passwords)
+                logger.info("Using standard WordPress authentication (no spaces in password)")
+                
+                # Log credential format (without exposing the actual values)
+                logger.info(f"Using basic auth credentials with username length: {len(self.username)}")
+                
+                # Standard Basic Auth encoding with base64
+                auth_string = f"{self.username}:{self.password}"
+                encoded = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                
+                # Log auth header format (without exposing the actual token)
+                logger.info(f"Auth header format: Authorization: Basic [base64 token]")
+                
+                # Check if the token seems unusual or problematic
+                if len(encoded) < 10:
+                    logger.warning(f"Auth token is unusually short ({len(encoded)} chars), possible encoding issue")
+                
+                # Log first few characters to help with debugging (without exposing the whole token)
+                token_preview = encoded[:5] + "..." if len(encoded) > 5 else encoded
+                logger.info(f"Auth token preview (first 5 chars): {token_preview}")
+                
+                return {'Authorization': f'Basic {encoded}'}
             
         except Exception as e:
             logger.error(f"Error creating auth header: {str(e)}")
+            logger.exception("Full exception traceback:")
+            
             # Fall back to a simple header if there's an error
             auth_string = f"{self.username}:{self.password}"
             encoded = base64.b64encode(auth_string.encode()).decode('utf-8')
@@ -227,6 +267,41 @@ class WordPressAPI:
                 except Exception as parse_error:
                     logger.error(f"Could not parse error response as JSON: {str(parse_error)}")
                 
+                # Add WordPress informational error messages for common issues
+                if response.status_code == 401:
+                    logger.error("Authentication failed: WordPress returned 401 Unauthorized")
+                    logger.error("Possible causes: incorrect username/password or insufficient permissions")
+                    
+                    # Try to help troubleshoot
+                    if len(self.password) < 5:
+                        logger.error("Password is very short, this might be incorrect")
+                    
+                    # Check for common WordPress application password format issues
+                    if ' ' in self.password:
+                        # App password often formatted like "XXXX XXXX XXXX XXXX"
+                        logger.info("Using WordPress Application Password format (detected spaces)")
+                        
+                        # Let's see if it looks like a properly formatted app password
+                        app_password_segments = self.password.split()
+                        if all(len(segment) == 4 for segment in app_password_segments):
+                            logger.info(f"Password appears to be in correct App Password format with {len(app_password_segments)} segments of 4 characters each")
+                        else:
+                            logger.warning(f"Password contains spaces but doesn't match typical app password format (XXXX XXXX XXXX XXXX)")
+                            segment_lengths = [len(s) for s in app_password_segments]
+                            logger.warning(f"Password segment lengths: {segment_lengths} (should all be 4)")
+                        
+                        # Suggest a possible fix for app password format if it's not perfectly formatted
+                        if any(len(segment) != 4 for segment in app_password_segments):
+                            logger.warning("WordPress application passwords should be in format: XXXX XXXX XXXX XXXX")
+                            logger.warning("Please check if there are extra spaces or missing characters")
+                    
+                    if "wordpress.com" in self.base_url:
+                        logger.error("For WordPress.com sites, special API endpoints and authentication may be required")
+                    
+                    # Add a specific note about JWT authentication
+                    logger.info("Note: Some WordPress sites use JWT authentication instead of Basic Auth")
+                    logger.info("If you have a plugin like JWT Authentication installed, a different approach may be needed")
+                
                 return {
                     'success': False,
                     'error': f"Failed with status code: {response.status_code}. See logs for details."
@@ -293,3 +368,100 @@ class WordPressAPI:
             logger.error(f"Error getting categories: {str(e)}")
             logger.exception("Full exception traceback:")
             return []
+            
+    def diagnose_connection(self):
+        """
+        Comprehensive WordPress API connection diagnostics
+        Tests various aspects of the connection and returns detailed information
+        """
+        try:
+            logger.info("===== WORDPRESS API DIAGNOSTIC INFORMATION =====")
+            logger.info(f"WordPress Base URL: {self.base_url}")
+            logger.info(f"WordPress API Endpoint: {self.api_url}")
+            logger.info(f"Username Length: {len(self.username)}")
+            logger.info(f"Password Length: {len(self.password)}")
+            
+            # Check if password looks like a WordPress application password
+            if ' ' in self.password:
+                pw_segments = self.password.split()
+                segment_info = [len(s) for s in pw_segments]
+                logger.info(f"Password appears to be in Application Password format with {len(pw_segments)} segments: {segment_info}")
+                if any(len(s) != 4 for s in pw_segments):
+                    logger.warning("WARNING: Application password segments should normally be 4 characters each")
+            else:
+                logger.info("Using standard password format (not an application password)")
+            
+            # Test server connection without authentication
+            logger.info("\n--- Testing basic server connection ---")
+            try:
+                # Just ping the site without authentication to see if it's reachable
+                response = requests.get(
+                    self.base_url,
+                    timeout=5
+                )
+                logger.info(f"Server connection: {response.status_code} ({response.reason})")
+                if response.status_code == 200:
+                    logger.info("✓ Server connection successful")
+                else:
+                    logger.warning(f"✗ Server returned non-200 status: {response.status_code}")
+            except Exception as e:
+                logger.error(f"✗ Server connection failed: {str(e)}")
+            
+            # Test WordPress REST API discovery
+            logger.info("\n--- Testing WordPress REST API discovery ---")
+            try:
+                # Try to access the root of the WordPress REST API to see if it's available
+                api_root = f"{self.base_url}/wp-json"
+                response = requests.get(
+                    api_root,
+                    timeout=5
+                )
+                logger.info(f"WordPress API discovery: {response.status_code} ({response.reason})")
+                if response.status_code == 200:
+                    logger.info("✓ WordPress REST API found")
+                else:
+                    logger.warning(f"✗ WordPress REST API not found at {api_root}")
+            except Exception as e:
+                logger.error(f"✗ WordPress API discovery failed: {str(e)}")
+            
+            # Test authentication
+            logger.info("\n--- Testing Authentication ---")
+            # Use the test_connection method which checks authentication
+            auth_success = self.test_connection()
+            if auth_success:
+                logger.info("✓ Authentication successful")
+            else:
+                logger.error("✗ Authentication failed")
+            
+            # Try special WordPress debugging endpoints
+            logger.info("\n--- Testing WordPress Version Endpoint ---")
+            try:
+                response = requests.get(
+                    f"{self.base_url}/wp-json",
+                    headers=self.standard_headers,
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'name' in data:
+                        logger.info(f"WordPress Site Name: {data['name']}")
+                    if 'description' in data:
+                        logger.info(f"WordPress Site Description: {data['description']}")
+                    if 'url' in data:
+                        logger.info(f"WordPress Site URL: {data['url']}")
+                    if 'namespaces' in data:
+                        logger.info(f"Available namespaces: {', '.join(data['namespaces'])}")
+                        if 'wp/v2' not in data['namespaces']:
+                            logger.warning("! 'wp/v2' namespace not found - this suggests an issue with WordPress REST API")
+                else:
+                    logger.warning(f"Could not get WordPress version info: {response.status_code}")
+            except Exception as e:
+                logger.error(f"Error getting WordPress version: {str(e)}")
+                
+            logger.info("===== END WORDPRESS API DIAGNOSTICS =====")
+            return auth_success
+            
+        except Exception as e:
+            logger.error(f"Error during WordPress diagnostics: {str(e)}")
+            logger.exception("Full exception traceback:")
+            return False
