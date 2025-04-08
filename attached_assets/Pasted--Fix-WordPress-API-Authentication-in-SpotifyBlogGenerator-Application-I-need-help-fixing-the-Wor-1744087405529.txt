@@ -1,0 +1,62 @@
+# Fix WordPress API Authentication in SpotifyBlogGenerator Application
+
+I need help fixing the WordPress API authentication in my SpotifyBlogGenerator application. The API calls are consistently failing with 403 Forbidden errors despite using the same credentials that work successfully in n8n.
+
+## Current Issues
+
+Looking at the console logs, I've discovered these specific problems:
+
+1. The WordPress API requests fail with both direct auth and auth header methods, getting 403 Forbidden responses
+2. The same credentials work in n8n, suggesting implementation issues in my code
+3. The URL path had duplicate segments (fixed now)
+
+## Files Requiring Fixes
+
+The main file needing changes is `wordpress_api.py`, specifically in the authentication implementation and request formatting.
+
+## Required Changes
+
+Please make these specific changes to the `wordpress_api.py` file:
+
+1. **Add User-Agent Header to all requests**:
+   - Add `"User-Agent": "WordPress API Client/1.0"` to all request headers
+   - WordPress/Cloudflare may be filtering requests without proper User-Agent headers
+
+2. **Improve Authentication Header Construction**:
+   - Ensure basic auth is correctly formatted without double-encoding the password
+   - Use the raw application password directly in the base64 encoding
+   - Example: `auth_string = f"{username}:{password}"` -> `encoded = base64.b64encode(auth_string.encode()).decode()`
+
+3. **Add Accept Header**:
+   - Include `"Accept": "application/json"` in all request headers
+
+4. **Ensure HTTPS Protocol**:
+   - Ensure the base_url always uses HTTPS
+
+5. **Improve Error Handling and Debugging**:
+   - Add more detailed error logging that shows exactly what's being sent and received
+   - Include the raw response content in error logs
+
+6. **Simplify Authentication Method**:
+   - Consider using only the auth header approach instead of trying both methods
+
+## Testing Instructions
+
+After making these changes:
+1. Include debug output to compare with a curl command equivalent
+2. Test with a simple post creation to verify the fix works
+3. Ensure the changes maintain compatibility with the existing code structure
+
+## Expected Outcome
+
+The API calls should successfully authenticate and create draft posts in WordPress just like n8n does, without 403 errors.
+
+## Reference
+
+For comparison, here's how n8n constructs its API calls (which work successfully):
+- It uses Basic authentication with the same username and application password
+- It includes a User-Agent header
+- It properly formats the request with Content-Type: application/json 
+- It sends properly structured JSON data for the WordPress API
+
+Thank you for your help!
