@@ -1,0 +1,184 @@
+[
+  {
+    "id": 4271,
+    "date": "2025-04-08T00:36:44",
+    "date_gmt": "2025-04-08T00:36:44",
+    "guid": {
+      "rendered": "https://mmweddingspa.com/?p=4271",
+      "raw": "https://mmweddingspa.com/?p=4271"
+    },
+    "modified": "2025-04-08T00:36:44",
+    "modified_gmt": "2025-04-08T00:36:44",
+    "password": "",
+    "slug": "",
+    "status": "draft",
+    "type": "post",
+    "link": "https://mmweddingspa.com/?p=4271",
+    "title": {
+      "raw": "test",
+      "rendered": "test"
+    },
+    "content": {
+      "raw": "",
+      "rendered": "",
+      "protected": false,
+      "block_version": 0
+    },
+    "excerpt": {
+      "raw": "",
+      "rendered": "",
+      "protected": false
+    },
+    "author": 8,
+    "featured_media": 0,
+    "comment_status": "",
+    "ping_status": "open",
+    "sticky": false,
+    "template": "",
+    "format": "standard",
+    "meta": {
+      "_acf_changed": false,
+      "footnotes": ""
+    },
+    "categories": [
+      1
+    ],
+    "tags": [],
+    "venues": [],
+    "permalink_template": "https://mmweddingspa.com/uncategorized/%postname%/",
+    "generated_slug": "test",
+    "class_list": [
+      "post-4271",
+      "post",
+      "type-post",
+      "status-draft",
+      "format-standard",
+      "hentry",
+      "category-uncategorized"
+    ],
+    "acf": [],
+    "_links": {
+      "self": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271",
+          "targetHints": {
+            "allow": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          }
+        }
+      ],
+      "collection": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts"
+        }
+      ],
+      "about": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/types/post"
+        }
+      ],
+      "author": [
+        {
+          "embeddable": true,
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/users/8"
+        }
+      ],
+      "replies": [
+        {
+          "embeddable": true,
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/comments?post=4271"
+        }
+      ],
+      "version-history": [
+        {
+          "count": 0,
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271/revisions"
+        }
+      ],
+      "wp:attachment": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/media?parent=4271"
+        }
+      ],
+      "wp:term": [
+        {
+          "taxonomy": "category",
+          "embeddable": true,
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/categories?post=4271"
+        },
+        {
+          "taxonomy": "post_tag",
+          "embeddable": true,
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/tags?post=4271"
+        },
+        {
+          "taxonomy": "venues",
+          "embeddable": true,
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/venues?post=4271"
+        }
+      ],
+      "wp:action-publish": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-unfiltered-html": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-sticky": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-assign-author": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-create-categories": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-assign-categories": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-create-tags": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-assign-tags": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-create-venues": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "wp:action-assign-venues": [
+        {
+          "href": "https://mmweddingspa.com/wp-json/wp/v2/posts/4271"
+        }
+      ],
+      "curies": [
+        {
+          "name": "wp",
+          "href": "https://api.w.org/{rel}",
+          "templated": true
+        }
+      ]
+    }
+  }
+]
