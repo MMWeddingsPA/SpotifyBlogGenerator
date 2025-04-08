@@ -4,7 +4,7 @@ from utils.youtube_api import YouTubeAPI
 from utils.spotify_api import SpotifyAPI
 from utils.openai_api import generate_blog_post
 from utils.wordpress_api import WordPressAPI
-from utils.csv_handler import load_csv, save_csv
+from utils.csv_handler import load_csv, save_csv, create_empty_playlist_df
 import os
 import json
 from datetime import datetime
@@ -381,6 +381,7 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
         ].copy()
 
         results = {}
+        save_updates = False
 
         # Fetch YouTube links if selected
         if "YouTube" in operations:
@@ -400,27 +401,71 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                         progress = min(1.0, idx / total_songs)
                         progress_bar.progress(progress)
 
+                    # Update the main DataFrame with the new YouTube links
                     st.session_state.df.update(playlist_df)
+                    save_updates = True
+                    
+                    # Note the file in results for display purposes
                     filename = save_processed_csv(st.session_state.df, "youtube")
                     results['youtube_file'] = filename
+                    st.success(f"✅ YouTube links fetched and saved for {total_songs} songs")
+                else:
+                    st.info("ℹ️ All songs already have YouTube links")
 
         # Fetch Spotify playlist if selected
         if "Spotify" in operations:
             with st.spinner("🎧 Fetching Spotify playlist link..."):
-                spotify_link = spotify_api.get_playlist_link(
-                    "bm8eje5tcjj9eazftizqoikwm",
-                    playlist
-                )
-                results['spotify_link'] = spotify_link
+                # Try to get the playlist link
+                user_id = "12167600836"  # Hardcoded user ID for the wedding DJ
+                
+                # Clean the playlist name for Spotify search
+                clean_playlist_name = spotify_api.clean_playlist_name(playlist)
+                
+                spotify_link = spotify_api.get_playlist_link(user_id, clean_playlist_name)
+                
+                if spotify_link:
+                    results['spotify_link'] = spotify_link
+                    
+                    # Save Spotify link to the DataFrame for all songs in this playlist
+                    for idx in playlist_df.index:
+                        if 'Spotify_Link' in playlist_df.columns:
+                            playlist_df.at[idx, 'Spotify_Link'] = spotify_link
+                    
+                    # Update the main DataFrame with the new Spotify links
+                    st.session_state.df.update(playlist_df)
+                    save_updates = True
+                    
+                    st.success(f"✅ Spotify playlist found and saved to CSV")
+                else:
+                    st.warning("⚠️ Spotify playlist not found")
+
+        # Save changes to CSV if we made updates
+        if save_updates:
+            filename = save_processed_csv(st.session_state.df, "updated")
+            results['updated_file'] = filename
 
         # Generate blog post if selected
         if "Blog" in operations:
             with st.spinner("✍️ Generating blog post..."):
+                # Use the Spotify link we just fetched, or look for one in the DataFrame
+                spotify_link = results.get('spotify_link')
+                
+                # If we don't have a link from the API, check if there's one in the DataFrame
+                if not spotify_link and 'Spotify_Link' in playlist_df.columns:
+                    # Get the first non-empty Spotify link
+                    spotify_links = playlist_df[
+                        (playlist_df['Spotify_Link'].notna()) & 
+                        (playlist_df['Spotify_Link'] != '')
+                    ]['Spotify_Link']
+                    
+                    if not spotify_links.empty:
+                        spotify_link = spotify_links.iloc[0]
+                
                 # Generate the blog post
                 blog_post = generate_blog_post(
                     playlist_name=playlist,
                     songs_df=playlist_df,
-                    spotify_link=results.get('spotify_link')
+                    spotify_link=spotify_link
                 )
                 results['blog_post'] = blog_post
                 
@@ -436,11 +481,13 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                     title=default_title
                 )
                 results['blog_file'] = saved_file
+                st.success(f"✅ Blog post generated and saved")
 
         return True, results
 
     except Exception as e:
-        return False, str(e)
+        st.error(f"❌ Error processing playlist: {str(e)}")
+        return False, {}
 
 def main():
     # Initialize API clients with error handling
@@ -599,6 +646,28 @@ def main():
             help="Upload a CSV file containing your playlists"
         )
         
+        # Create new playlist section
+        st.markdown("**Create New Playlist**")
+        col1, col2 = st.columns(2)
+        with col1:
+            create_new = st.button("✨ Create New CSV", use_container_width=True)
+        with col2:
+            load_last = False
+            if st.session_state.last_saved_csv and os.path.exists(st.session_state.last_saved_csv):
+                load_last = st.button("📂 Load Last CSV", use_container_width=True)
+        
+        if create_new:
+            st.session_state.df = create_empty_playlist_df()
+            st.session_state.create_mode = True
+            st.success("Created empty playlist. Add your songs below.")
+        
+        if load_last:
+            try:
+                st.session_state.df = load_csv(st.session_state.last_saved_csv)
+                st.success(f"✅ Loaded {st.session_state.last_saved_csv}")
+            except Exception as e:
+                st.error(f"❌ Error loading saved CSV: {str(e)}")
+        
         # Saved blog posts section
         st.markdown("---")
         st.header("📝 Saved Blog Posts")
@@ -658,14 +727,7 @@ def main():
             ```
             """)
 
-        # Load previous CSV if available
-        if st.session_state.last_saved_csv and os.path.exists(st.session_state.last_saved_csv):
-            if st.button("📂 Load Last Saved CSV"):
-                try:
-                    st.session_state.df = load_csv(st.session_state.last_saved_csv)
-                    st.success(f"✅ Loaded {st.session_state.last_saved_csv}")
-                except Exception as e:
-                    st.error(f"❌ Error loading saved CSV: {str(e)}")
+        # Note: We've already added a load last CSV button in the create new playlist section
 
     # Main content area
     
@@ -839,8 +901,141 @@ def main():
 
     if st.session_state.df is not None:
         st.markdown("---")
-        st.header("🎵 Available Playlists")
-        playlists = st.session_state.df['Playlist'].unique()
+        
+        # Add CSV editor tab
+        tab1, tab2 = st.tabs(["📊 Process Playlists", "✏️ Edit CSV Data"])
+        
+        with tab1:
+            st.header("🎵 Available Playlists")
+            playlists = st.session_state.df['Playlist'].unique()
+        
+        with tab2:
+            st.header("✏️ CSV Editor")
+            
+            # Edit mode explanation with styling
+            st.markdown("""
+            <div style="background-color: rgba(212, 175, 55, 0.05); border-left: 4px solid #D4AF37; 
+                padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <p style="margin: 0; color: #1A2A44;">
+                    <strong>CSV Editor Mode:</strong> Directly edit your playlist data here. 
+                    Changes are saved back to CSV when you click the Save button.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Playlist selector for editing
+            edit_playlists = st.session_state.df['Playlist'].unique()
+            selected_edit_playlist = st.selectbox(
+                "Select playlist to edit",
+                edit_playlists,
+                format_func=lambda x: x.split("Wedding Cocktail Hour")[0].strip(),
+                key="edit_playlist_selector"
+            )
+            
+            if selected_edit_playlist:
+                # Filter for selected playlist
+                edit_df = st.session_state.df[st.session_state.df['Playlist'] == selected_edit_playlist].copy()
+                
+                # Get the columns we want to edit
+                edit_columns = ['Song', 'Artist', 'YouTube_Link']
+                if 'Spotify_Link' in edit_df.columns:
+                    edit_columns.append('Spotify_Link')
+                
+                # Create a editable dataframe
+                edited_df = st.data_editor(
+                    edit_df[edit_columns],
+                    num_rows="dynamic", 
+                    use_container_width=True,
+                    hide_index=True,
+                    key=f"editor_{selected_edit_playlist.replace(' ', '_')}"
+                )
+                
+                # Save button with styling
+                if st.button("💾 Save Changes", use_container_width=True, key="save_csv_edits"):
+                    try:
+                        # Update the main dataframe with edits
+                        for idx, row in edited_df.iterrows():
+                            for col in edit_columns:
+                                st.session_state.df.loc[
+                                    (st.session_state.df['Playlist'] == selected_edit_playlist) & 
+                                    (st.session_state.df.index == idx), 
+                                    col
+                                ] = row[col]
+                        
+                        # Save updated dataframe to CSV
+                        filename = save_processed_csv(st.session_state.df, "edited")
+                        
+                        st.success(f"✅ Changes saved successfully to {filename}!")
+                    except Exception as e:
+                        st.error(f"❌ Error saving changes: {str(e)}")
+                
+                # Button to add new songs
+                if st.button("➕ Add New Song", use_container_width=True, key="add_new_song"):
+                    # Create a new row with the current playlist
+                    new_row = {
+                        'Playlist': selected_edit_playlist,
+                        'Song': 'New Song',
+                        'Artist': 'Artist Name',
+                        'YouTube_Link': ''
+                    }
+                    if 'Spotify_Link' in st.session_state.df.columns:
+                        new_row['Spotify_Link'] = ''
+                    
+                    # Add the new row to the dataframe
+                    st.session_state.df = pd.concat([
+                        st.session_state.df, 
+                        pd.DataFrame([new_row])
+                    ], ignore_index=True)
+                    
+                    # Save the updated dataframe
+                    filename = save_processed_csv(st.session_state.df, "added_song")
+                    st.success(f"✅ Added new song to playlist and saved to {filename}!")
+                    st.experimental_rerun()
+            
+            # Create new playlist section (for new playlists)
+            st.markdown("---")
+            st.subheader("Create New Playlist")
+            
+            # Input fields for new playlist
+            new_playlist_name = st.text_input(
+                "New Playlist Name",
+                placeholder="e.g., The Elegant Wedding Cocktail Hour",
+                key="new_playlist_name"
+            )
+            
+            # Create button
+            if st.button("✨ Create New Playlist", key="create_playlist_button"):
+                if new_playlist_name:
+                    # Make sure it has the right format
+                    if "Wedding Cocktail Hour" not in new_playlist_name:
+                        new_playlist_name = f"{new_playlist_name} Wedding Cocktail Hour"
+                    
+                    # Add empty row with the new playlist
+                    new_row = {
+                        'Playlist': new_playlist_name,
+                        'Song': 'First Song',
+                        'Artist': 'Artist Name',
+                        'YouTube_Link': ''
+                    }
+                    if 'Spotify_Link' in st.session_state.df.columns:
+                        new_row['Spotify_Link'] = ''
+                    
+                    # Add to dataframe
+                    st.session_state.df = pd.concat([
+                        st.session_state.df, 
+                        pd.DataFrame([new_row])
+                    ], ignore_index=True)
+                    
+                    # Save updated dataframe
+                    filename = save_processed_csv(st.session_state.df, "new_playlist")
+                    st.success(f"✅ Created new playlist '{new_playlist_name}' and saved to {filename}!")
+                    st.experimental_rerun()
+                else:
+                    st.warning("⚠️ Please enter a playlist name")
+        
+        # Back to Process tab
+        with tab1:
+            playlists = st.session_state.df['Playlist'].unique()
 
         # Elegant playlist selection section
         st.markdown("""

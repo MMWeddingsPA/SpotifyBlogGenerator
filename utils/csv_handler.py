@@ -7,7 +7,9 @@ def load_csv(file):
     """
     try:
         # Read CSV without headers since our format is custom
-        df = pd.read_csv(file, header=None, names=['Entry', 'Song', 'Artist', 'YouTube_Link'])
+        # Additional columns for Spotify_Link and any future data
+        df = pd.read_csv(file, header=None, names=['Entry', 'Song', 'Artist', 'YouTube_Link', 'Spotify_Link', 'Notes'], 
+                         usecols=range(6), na_values=['nan'], keep_default_na=True)
 
         # Initialize playlist tracking
         current_playlist = None
@@ -27,12 +29,15 @@ def load_csv(file):
                 current_playlist = row['Entry']
                 playlist_rows = []
             elif pd.notna(row['Song']) and pd.notna(row['Artist']):
-                # Add song to current playlist
-                playlist_rows.append({
+                # Add song to current playlist with all available data
+                song_data = {
                     'Song': row['Song'],
                     'Artist': row['Artist'],
-                    'YouTube_Link': row['YouTube_Link'] if pd.notna(row['YouTube_Link']) else ''
-                })
+                    'YouTube_Link': row['YouTube_Link'] if pd.notna(row['YouTube_Link']) else '',
+                    'Spotify_Link': row['Spotify_Link'] if pd.notna(row['Spotify_Link']) else '',
+                    'Notes': row['Notes'] if pd.notna(row['Notes']) else ''
+                }
+                playlist_rows.append(song_data)
 
         # Add the last playlist
         if current_playlist and playlist_rows:
@@ -45,6 +50,12 @@ def load_csv(file):
             raise ValueError("No valid playlists found in the CSV file")
 
         final_df = pd.concat(playlists_data, ignore_index=True)
+        
+        # Ensure all expected columns exist (for compatibility with older CSV files)
+        for col in ['YouTube_Link', 'Spotify_Link', 'Notes']:
+            if col not in final_df.columns:
+                final_df[col] = ''
+                
         return final_df
 
     except pd.errors.EmptyDataError:
@@ -67,23 +78,32 @@ def save_csv(df, filename):
 
         for playlist_name, group in grouped:
             # Add playlist header
-            output_rows.append([playlist_name, '', '', ''])
+            output_rows.append([playlist_name, '', '', '', '', ''])
 
-            # Add songs
+            # Add songs with all available data
             for _, row in group.iterrows():
-                output_rows.append([
+                output_row = [
                     f"{row['Song']}-{row['Artist']}", 
                     row['Song'],
                     row['Artist'],
-                    row['YouTube_Link']
-                ])
+                    row['YouTube_Link'] if 'YouTube_Link' in row and pd.notna(row['YouTube_Link']) else '',
+                    row['Spotify_Link'] if 'Spotify_Link' in row and pd.notna(row['Spotify_Link']) else '',
+                    row['Notes'] if 'Notes' in row and pd.notna(row['Notes']) else ''
+                ]
+                output_rows.append(output_row)
 
             # Add separator
-            output_rows.append(['', '', '', ''])
+            output_rows.append(['', '', '', '', '', ''])
 
         # Convert to DataFrame and save
-        output_df = pd.DataFrame(output_rows, columns=['Entry', 'Song', 'Artist', 'YouTube_Link'])
+        output_df = pd.DataFrame(output_rows, columns=['Entry', 'Song', 'Artist', 'YouTube_Link', 'Spotify_Link', 'Notes'])
         output_df.to_csv(filename, index=False, header=False)
 
     except Exception as e:
         raise Exception(f"Error saving CSV: {str(e)}")
+
+def create_empty_playlist_df():
+    """
+    Create an empty playlist DataFrame with the required columns
+    """
+    return pd.DataFrame(columns=['Song', 'Artist', 'YouTube_Link', 'Spotify_Link', 'Notes', 'Playlist'])
