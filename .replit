@@ -21,7 +21,7 @@ args = "Simple Test App"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Final App"
+args = "Fixed App"
 
 [[workflows.workflow]]
 name = "Simple Test App"
@@ -39,7 +39,7 @@ args = "streamlit run simple_test.py"
 waitForPort = 5001
 
 [[workflows.workflow]]
-name = "Final App"
+name = "Fixed App"
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -50,7 +50,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "streamlit run final_app.py"
+args = "streamlit run final_fixed_app.py"
 waitForPort = 5000
 
 [[ports]]
