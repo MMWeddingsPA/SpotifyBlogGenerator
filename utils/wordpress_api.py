@@ -32,11 +32,13 @@ class WordPressAPI:
         self.api_url = api_url.rstrip('/')
         
         # We'll try several URL formats because different WordPress sites might use different paths
+        # For WordPress with restricted REST API, we need to try other endpoints
         self.possible_urls = [
-            f"{self.api_url}/wp-json/wp/v2",           # Standard format
-            f"{self.api_url}/index.php/wp-json/wp/v2", # Some WordPress sites use this
-            f"{self.api_url}/wp-json/api/v1",          # Some custom API endpoints
-            f"{self.api_url}/wp-json",                 # Root API path
+            f"{self.api_url}/wp-json/wp/v2",                 # Standard format
+            f"{self.api_url}/index.php/wp-json/wp/v2",       # Some WordPress sites use this
+            f"{self.api_url}/wp-json/api/v1",                # Some custom API endpoints
+            f"{self.api_url}/wp-json",                       # Root API path
+            f"{self.api_url.rstrip('/')}"                    # Site root (some WP sites have custom REST routes)
         ]
         
         # Use the standard format as the default
@@ -259,13 +261,24 @@ class WordPressAPI:
                     logger.error(f"Error with {method['name']} method: {str(e)}")
             
             # Final success check
-            if success:
-                return {
-                    'success': True,
-                    'post_id': response.json().get('id'),
-                    'post_url': response.json().get('link'),
-                    'edit_url': response.json().get('_links', {}).get('wp:action-edit', [{}])[0].get('href'),
-                }
+            if success and response is not None:
+                try:
+                    json_response = response.json()
+                    return {
+                        'success': True,
+                        'post_id': json_response.get('id'),
+                        'post_url': json_response.get('link'),
+                        'edit_url': json_response.get('_links', {}).get('wp:action-edit', [{}])[0].get('href'),
+                    }
+                except Exception as e:
+                    logger.error(f"Error parsing JSON response: {str(e)}")
+                    # Return success but with limited details
+                    return {
+                        'success': True,
+                        'post_id': 'unknown',
+                        'post_url': '#',
+                        'edit_url': '#',
+                    }
             else:
                 # If we have a response, log it
                 if response:

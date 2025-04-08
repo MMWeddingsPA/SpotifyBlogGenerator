@@ -486,18 +486,33 @@ def main():
             os.getenv("WORDPRESS_USERNAME"),
             os.getenv("WORDPRESS_PASSWORD")
         ]):
+            # Get the credentials from environment variables
+            api_url = os.getenv("WORDPRESS_API_URL")
+            username = os.getenv("WORDPRESS_USERNAME")
+            password = os.getenv("WORDPRESS_PASSWORD")
+            
+            # Fix for common WordPress URL issues - ensure we're using the correct base URL
+            # WordPress Application Passwords expect the site URL without wp-json
+            if api_url and (api_url.endswith('/wp-json') or api_url.endswith('/wp-json/')):
+                api_url = api_url.rsplit('/wp-json', 1)[0]
+            
+            st.sidebar.write(f"💬 Using WordPress site URL: {api_url}")
+            
+            # Initialize WordPress API with the proper URL format
             wordpress_api = WordPressAPI(
-                os.getenv("WORDPRESS_API_URL"),
-                os.getenv("WORDPRESS_USERNAME"),
-                os.getenv("WORDPRESS_PASSWORD")
+                api_url,  # Base site URL, our API class will handle the rest
+                username,
+                password
             )
+            
             # Debug information to verify API connection
-            st.sidebar.write(f"Debug: WordPress API URL length: {len(os.getenv('WORDPRESS_API_URL')) if os.getenv('WORDPRESS_API_URL') else 'URL not found'}")
-            st.sidebar.write(f"Debug: WordPress Username length: {len(os.getenv('WORDPRESS_USERNAME')) if os.getenv('WORDPRESS_USERNAME') else 'Username not found'}")
-            st.sidebar.write(f"Debug: WordPress Password available: {'Yes' if os.getenv('WORDPRESS_PASSWORD') else 'No'}")
+            st.sidebar.write(f"Debug: WordPress Username: {username if username else 'None'}")
+            st.sidebar.write(f"Debug: WordPress Password available: {'Yes' if password else 'No'}")
+            st.sidebar.write(f"Debug: Using Application Password for WordPress REST API")
     except Exception as e:
         wordpress_api = None
-        st.sidebar.warning(f"⚠️ WordPress API initialization failed: {str(e)}")
+        st.sidebar.error(f"⚠️ WordPress API initialization failed: {str(e)}")
+        st.sidebar.info("Make sure you're using an Application Password generated specifically for the WordPress REST API")
         
     # Display API status in sidebar
     with st.sidebar:
