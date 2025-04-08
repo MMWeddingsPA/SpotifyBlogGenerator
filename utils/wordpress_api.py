@@ -2,6 +2,7 @@ import requests
 import base64
 import json
 import logging
+import urllib.parse
 from datetime import datetime
 
 # Set up logging
@@ -41,9 +42,27 @@ class WordPressAPI:
         
     def _get_auth_header(self):
         """Create authorization header using basic auth"""
-        credentials = f"{self.username}:{self.password}"
-        token = base64.b64encode(credentials.encode()).decode('utf-8')
+        # Check if username/password have special characters that need URL encoding
+        safe_username = urllib.parse.quote(self.username)
+        safe_password = urllib.parse.quote(self.password)
+        
+        # Log if encoding was applied (without exposing credentials)
+        if safe_username != self.username:
+            logger.info("Username contains special characters and was URL encoded")
+        if safe_password != self.password:
+            logger.info("Password contains special characters and was URL encoded")
+            
+        # Create both versions of credentials - with and without URL encoding
+        credentials_raw = f"{self.username}:{self.password}"
+        credentials_safe = f"{safe_username}:{safe_password}"
+        
+        # Generate token with original credentials (standard method)
+        token = base64.b64encode(credentials_raw.encode()).decode('utf-8')
         auth_header = {'Authorization': f'Basic {token}'}
+        
+        # Log auth header format (without exposing the actual token)
+        logger.info(f"Auth header format: Authorization: Basic [base64 token]")
+        
         return auth_header
     
     def test_connection(self):
@@ -150,7 +169,7 @@ class WordPressAPI:
             logger.info(f"Title: {title[:30]}...")
             logger.info(f"Content length: {len(content)} characters")
             logger.info(f"Status: {status}")
-            logger.info(f"Post data keys: {list(post_data.keys())}")
+            logger.info(f"Post data structure: {json.dumps(post_data, indent=2)}")
             
             # Initialize response variable
             response = None
@@ -160,6 +179,10 @@ class WordPressAPI:
                 logger.info("Attempting to create post with direct auth...")
                 headers = {'Content-Type': 'application/json'}
                 
+                # Log exact request being sent
+                logger.info(f"Request headers: {json.dumps(headers)}")
+                logger.info(f"Using direct auth with username: {self.username} (password hidden)")
+                
                 response = requests.post(
                     endpoint,
                     auth=self.auth,
@@ -168,15 +191,29 @@ class WordPressAPI:
                     timeout=20
                 )
                 
+                # Log complete response details
+                logger.info(f"Response status: {response.status_code}")
+                logger.info(f"Response headers: {dict(response.headers)}")
+                
                 # Check if successful
                 if response.status_code in (200, 201):
                     logger.info(f"Post created successfully with direct auth!")
                     json_data = response.json()
+                    logger.info(f"Response data: {json.dumps(json_data, indent=2)}")
+                    
+                    post_id = json_data.get('id')
+                    post_url = json_data.get('link')
+                    edit_url = f"{self.base_url}/wp-admin/post.php?post={post_id}&action=edit"
+                    
                     return {
                         'success': True,
-                        'post_id': json_data.get('id'),
-                        'post_url': json_data.get('link'),
+                        'post_id': post_id,
+                        'post_url': post_url,
+                        'edit_url': edit_url
                     }
+                else:
+                    logger.error(f"Direct auth failed with status: {response.status_code}")
+                    logger.error(f"Response text: {response.text}")
             except Exception as e:
                 logger.error(f"Error creating post with direct auth: {str(e)}")
             
@@ -186,6 +223,12 @@ class WordPressAPI:
                 headers = {'Content-Type': 'application/json'}
                 headers.update(self.auth_header)
                 
+                # Log request details (redact actual token value)
+                safe_headers = headers.copy()
+                if 'Authorization' in safe_headers:
+                    safe_headers['Authorization'] = 'Basic [REDACTED]'
+                logger.info(f"Request headers: {json.dumps(safe_headers)}")
+                
                 response = requests.post(
                     endpoint,
                     headers=headers,
@@ -193,15 +236,29 @@ class WordPressAPI:
                     timeout=20
                 )
                 
+                # Log complete response details
+                logger.info(f"Response status: {response.status_code}")
+                logger.info(f"Response headers: {dict(response.headers)}")
+                
                 # Check if successful
                 if response.status_code in (200, 201):
                     logger.info(f"Post created successfully with auth header!")
                     json_data = response.json()
+                    logger.info(f"Response data: {json.dumps(json_data, indent=2)}")
+                    
+                    post_id = json_data.get('id')
+                    post_url = json_data.get('link')
+                    edit_url = f"{self.base_url}/wp-admin/post.php?post={post_id}&action=edit"
+                    
                     return {
                         'success': True,
-                        'post_id': json_data.get('id'),
-                        'post_url': json_data.get('link'),
+                        'post_id': post_id,
+                        'post_url': post_url,
+                        'edit_url': edit_url
                     }
+                else:
+                    logger.error(f"Auth header failed with status: {response.status_code}")
+                    logger.error(f"Response text: {response.text}")
             except Exception as e:
                 logger.error(f"Error creating post with auth header: {str(e)}")
             
@@ -229,6 +286,25 @@ class WordPressAPI:
                 'success': False,
                 'error': f"Error creating WordPress post: {str(e)}"
             }
+    
+    def create_test_post(self):
+        """Simple function to test WordPress POST capability with minimal content"""
+        test_title = "Test Post from Replit"
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        test_content = f"""
+        <p>This is a simple test post created at {timestamp} to verify WordPress API integration.</p>
+        <p>If you're seeing this post, it means the connection between the Blog Generator app and your WordPress site is working correctly!</p>
+        """
+        
+        logger.info("Creating simple test post...")
+        
+        # Use existing create_post method
+        result = self.create_post(test_title, test_content, status='draft')
+        
+        # Log the full result
+        logger.info(f"Test post result: {json.dumps(result, indent=2)}")
+        
+        return result
     
     def get_categories(self):
         """Get available categories from WordPress"""

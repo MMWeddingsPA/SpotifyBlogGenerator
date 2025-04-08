@@ -535,6 +535,37 @@ def main():
         # WordPress API status
         if wordpress_api:
             st.success("✅ WordPress API: Connected")
+            
+            # Add WordPress test post button
+            if st.button("🧪 Test WordPress Post"):
+                with st.spinner("Creating test post..."):
+                    try:
+                        result = wordpress_api.create_test_post()
+                        if result.get('success'):
+                            post_id = result.get('post_id')
+                            post_url = result.get('post_url')
+                            edit_url = result.get('edit_url')
+                            
+                            st.success(f"✅ Test post created! ID: {post_id}")
+                            
+                            st.markdown(
+                                f"""
+                                <div style="padding: 8px; background-color: rgba(212, 175, 55, 0.1); border-radius: 4px; margin-top: 10px;">
+                                    <div style="margin-bottom: 5px;">
+                                        <a href="{post_url}" target="_blank">🔍 View Post</a>
+                                    </div>
+                                    <div>
+                                        <a href="{edit_url}" target="_blank">✏️ Edit Post</a>
+                                    </div>
+                                </div>
+                                """, 
+                                unsafe_allow_html=True
+                            )
+                        else:
+                            st.error(f"❌ Failed: {result.get('error')}")
+                            st.info("Check the logs for details")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
         else:
             st.warning("⚠️ WordPress API: Not connected")
     
