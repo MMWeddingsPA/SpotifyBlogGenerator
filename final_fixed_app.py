@@ -514,8 +514,9 @@ def main():
                                         if wordpress_api is None:
                                             st.error("WordPress API not configured - cannot post to WordPress")
                                         else:
-                                            # Show WordPress posting button
-                                            if st.button("🚀 Post to WordPress"):
+                                            # Show WordPress posting button with a unique key
+                                            button_key = f"post_wordpress_{playlist}_processed"
+                                            if st.button("🚀 Post to WordPress", key=button_key):
                                                 with st.spinner("📝 Creating draft post in WordPress..."):
                                                     try:
                                                         # Post to WordPress as draft
@@ -670,7 +671,9 @@ def main():
                 
                 # WordPress posting section
                 if wordpress_api:
-                    if st.button("🚀 Post to WordPress"):
+                    # Add a unique key for this button to avoid duplicate element IDs
+                    button_key = f"post_wordpress_{selected_blog}"
+                    if st.button("🚀 Post to WordPress", key=button_key):
                         with st.spinner("📝 Creating draft post in WordPress..."):
                             try:
                                 # Post to WordPress as draft

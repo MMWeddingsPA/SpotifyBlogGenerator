@@ -18,15 +18,27 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     total_songs = len(songs_df)
     songs_per_section = min(5, max(3, total_songs // 4))
 
-    # Prepare song sections
+    # Prepare song sections - always use YouTube links for individual songs
     sections = []
     for i in range(0, total_songs, songs_per_section):
         section_songs = songs_df.iloc[i:i + songs_per_section]
-        songs_list = section_songs.apply(
-            lambda x: f"- [{x['Song']} – {x['Artist']}]({x['YouTube_Link']})" 
-            if x['YouTube_Link'] else f"- {x['Song']} – {x['Artist']}",
-            axis=1
-        ).tolist()
+        songs_list = []
+        
+        for _, row in section_songs.iterrows():
+            song = row['Song']
+            artist = row['Artist']
+            youtube_link = row['YouTube_Link']
+            
+            # Only use YouTube links (not Spotify) for individual songs
+            if youtube_link and str(youtube_link).strip():
+                # Check if YouTube link is valid and contains youtube.com
+                if 'youtube.com' in str(youtube_link) or 'youtu.be' in str(youtube_link):
+                    songs_list.append(f"- [{song} – {artist}]({youtube_link})")
+                else:
+                    songs_list.append(f"- {song} – {artist}")
+            else:
+                songs_list.append(f"- {song} – {artist}")
+                
         sections.append("\n".join(songs_list))
 
     sections_text = "\n\n".join(f"Section {i+1}:\n{songs}" for i, songs in enumerate(sections))
@@ -41,9 +53,9 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     - 4-5 themed sections, each with:
         * Descriptive title that captures the section's mood
         * Paragraph explaining why these songs work well together
-        * Listed songs with links
+        * Listed songs - each song uses its YouTube link (already included in the song list below)
     - Conclusion: Why this playlist works for weddings
-    - Call to action with Spotify link
+    - Call to action that includes the full Spotify playlist link at the very end (don't reference Spotify earlier)
 
     2. Style Guidelines:
     - Conversational and warm tone
@@ -51,12 +63,15 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     - Blend practical details with romantic storytelling
     - Keep each section concise but meaningful
     - Use Markdown formatting
+    - IMPORTANT: Individual songs must link to YouTube (these links are already included below)
+    - IMPORTANT: Only use the Spotify playlist link at the end in a "Listen to the complete playlist" call to action
 
-    3. Available Songs:
+    3. Available Songs (already properly formatted with YouTube links, use exactly as provided):
     {sections_text}
 
     4. Additional Details:
     Spotify Playlist Link: {spotify_link if spotify_link else '[Insert Spotify Playlist Link]'}
+    ONLY use this Spotify link at the end of the blog post in a final call to action section.
 
     Generate a unique blog post that follows this structure but varies the content and descriptions creatively while maintaining the wedding DJ expert voice.
     """
