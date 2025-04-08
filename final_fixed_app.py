@@ -227,8 +227,8 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
         if "Spotify" in operations and spotify_api:
             with st.spinner("🎧 Fetching Spotify playlist link..."):
                 try:
-                    # Use the DJ's actual Spotify username (not numeric ID)
-                    user_id = "momentsandmemoriesdj"  # The correct username for Moments & Memories
+                    # Use the DJ's actual Spotify username from their profile link
+                    user_id = "bm8eje5tcjj9eazftizqoikwm"  # The correct user ID from the Spotify URL
                     
                     # Clean the playlist name for Spotify search - just use one cleaning method
                     # Don't clean it twice as that can cause too much difference from actual Spotify names
