@@ -49,39 +49,64 @@ class WordPressAPI:
     def test_connection(self):
         """Test the connection to the WordPress API"""
         try:
+            # We'll try a very simple query - just get a single post
             endpoint = f"{self.api_url}/posts?per_page=1"
             logger.info(f"Testing connection to: {endpoint}")
             
-            headers = {'Content-Type': 'application/json'}
-            headers.update(self.auth_header)
+            # Initialize response variable
+            response = None
             
             # First try with auth header
-            logger.info("Trying connection with auth header...")
-            response = requests.get(
-                endpoint,
-                headers=headers,
-                timeout=10
-            )
+            try:
+                logger.info("Trying connection with auth header...")
+                headers = {'Content-Type': 'application/json'}
+                headers.update(self.auth_header)
+                
+                response = requests.get(
+                    endpoint,
+                    headers=headers,
+                    timeout=10
+                )
+                
+                logger.info(f"Response status with auth header: {response.status_code}")
+                
+                if response.status_code == 200:
+                    logger.info("WordPress API connection successful (header auth)")
+                    return True
+            except Exception as e:
+                logger.error(f"Error testing with auth header: {str(e)}")
             
-            if response.status_code == 200:
-                logger.info("WordPress API connection successful (header auth)")
-                return True
-            
-            # Try with direct auth tuple
-            logger.info("Trying connection with direct auth...")
-            response = requests.get(
-                endpoint,
-                auth=self.auth,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                logger.info("WordPress API connection successful (direct auth)")
-                return True
+            # Then try with direct auth tuple
+            try:
+                logger.info("Trying connection with direct auth...")
+                response = requests.get(
+                    endpoint,
+                    auth=self.auth,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=10
+                )
+                
+                logger.info(f"Response status with direct auth: {response.status_code}")
+                
+                if response.status_code == 200:
+                    logger.info("WordPress API connection successful (direct auth)")
+                    return True
+            except Exception as e:
+                logger.error(f"Error testing with direct auth: {str(e)}")
                 
             # If neither method worked, log the error
-            logger.error(f"WordPress API connection failed: {response.status_code}")
-            logger.error(f"Response: {response.text[:500]}")
+            logger.error(f"WordPress API connection failed")
+            if response:
+                logger.error(f"Last response code: {response.status_code}")
+                logger.error(f"Response text: {response.text[:500]}")
+                
+                # Try to parse JSON error if available
+                try:
+                    error_json = response.json()
+                    logger.error(f"Error details: {json.dumps(error_json, indent=2)}")
+                except:
+                    pass
+                    
             return False
             
         except Exception as e:
@@ -104,10 +129,10 @@ class WordPressAPI:
             endpoint = f"{self.api_url}/posts"
             logger.info(f"Creating post at: {endpoint}")
             
-            # Prepare post data
+            # Prepare post data with proper formatting
             post_data = {
-                'title': title,
-                'content': content,
+                'title': {'raw': title},
+                'content': {'raw': content},
                 'status': status,
             }
             
@@ -126,6 +151,9 @@ class WordPressAPI:
             logger.info(f"Content length: {len(content)} characters")
             logger.info(f"Status: {status}")
             logger.info(f"Post data keys: {list(post_data.keys())}")
+            
+            # Initialize response variable
+            response = None
             
             # First attempt: try with auth tuple (direct auth)
             try:
@@ -179,9 +207,15 @@ class WordPressAPI:
             
             # If we get here, both methods failed
             error_message = "Failed to create post with both auth methods"
-            if 'response' in locals() and response:
+            if response:
                 error_message = f"Failed with status code: {response.status_code}"
-                logger.error(f"Response text: {response.text[:500]}")
+                logger.error(f"Response text: {response.text[:1000]}")
+                # Try to parse JSON response for more details
+                try:
+                    error_json = response.json()
+                    logger.error(f"Error details: {json.dumps(error_json, indent=2)}")
+                except:
+                    pass
             
             logger.error(error_message)
             return {
@@ -202,33 +236,55 @@ class WordPressAPI:
             endpoint = f"{self.api_url}/categories"
             logger.info(f"Getting categories from: {endpoint}")
             
-            # Try with direct auth first
-            response = requests.get(
-                endpoint,
-                auth=self.auth,
-                timeout=10
-            )
+            # Initialize response variable
+            response = None
             
-            if response.status_code == 200:
-                categories = response.json()
-                logger.info(f"Found {len(categories)} categories")
-                return categories
+            # Try with direct auth first
+            try:
+                logger.info("Getting categories with direct auth...")
+                response = requests.get(
+                    endpoint,
+                    auth=self.auth,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=10
+                )
+                
+                logger.info(f"Categories response code: {response.status_code}")
+                
+                if response.status_code == 200:
+                    categories = response.json()
+                    logger.info(f"Found {len(categories)} categories")
+                    return categories
+            except Exception as e:
+                logger.error(f"Error getting categories with direct auth: {str(e)}")
             
             # Try with auth header
-            headers = self.auth_header.copy()
-            response = requests.get(
-                endpoint,
-                headers=headers,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                categories = response.json()
-                logger.info(f"Found {len(categories)} categories")
-                return categories
+            try:
+                logger.info("Getting categories with auth header...")
+                headers = {'Content-Type': 'application/json'}
+                headers.update(self.auth_header)
+                
+                response = requests.get(
+                    endpoint,
+                    headers=headers,
+                    timeout=10
+                )
+                
+                logger.info(f"Categories response code: {response.status_code}")
+                
+                if response.status_code == 200:
+                    categories = response.json()
+                    logger.info(f"Found {len(categories)} categories")
+                    return categories
+            except Exception as e:
+                logger.error(f"Error getting categories with auth header: {str(e)}")
             
             # If both methods failed
-            logger.error(f"Failed to get categories: {response.status_code}")
+            logger.error(f"Failed to get categories")
+            if response:
+                logger.error(f"Response code: {response.status_code}")
+                logger.error(f"Response text: {response.text[:500]}")
+            
             return []
             
         except Exception as e:
