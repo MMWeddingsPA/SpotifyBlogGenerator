@@ -246,7 +246,8 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                             st.warning("⚠️ YouTube API quota exceeded. Please try again tomorrow.")
                             break
                         else:
-                            st.warning(f"⚠️ Could not fetch YouTube link for '{search_query}': {str(e)}")
+                            query = f"{row['Song']} - {row['Artist']}" if 'row' in locals() else "song"
+                            st.warning(f"⚠️ Could not fetch YouTube link for '{query}': {str(e)}")
                 
                 # Update the main DataFrame with the new YouTube links
                 st.session_state.df.update(playlist_df)
@@ -1216,7 +1217,11 @@ def main():
                                         with st.spinner("Revamping post content... This may take a minute..."):
                                             try:
                                                 # Revamp the content
-                                                revamped_content = revamp_existing_blog(post['content'], post['title'])
+                                                revamped_content = revamp_existing_blog(
+                                                    post_content=post['content'],
+                                                    post_title=post['title'], 
+                                                    youtube_api=youtube_api  # Pass the YouTube API client for link fetching
+                                                )
                                                 
                                                 # Store the revamped content
                                                 st.session_state.revamped_content = revamped_content

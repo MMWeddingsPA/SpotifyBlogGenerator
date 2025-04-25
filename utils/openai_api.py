@@ -17,9 +17,14 @@ def extract_songs_from_html(html_content):
     Returns a list of dictionaries with song and artist information
     """
     try:
-        # Look for song links in anchor tags or plain text references
+        # First, attempt to find linked songs
         song_pattern = r'<a[^>]*href="([^"]*)"[^>]*>(.*?)(?:–|&ndash;|&#8211;|\s*-\s*)(.*?)</a>|(?:<p>|<li>)(.*?)(?:–|&ndash;|&#8211;|\s*-\s*)(.*?)(?:</p>|</li>)'
         matches = re.finditer(song_pattern, html_content, re.IGNORECASE | re.DOTALL)
+        
+        # Second pattern to look for song names in plain paragraphs (not in links)
+        # This will capture more song references that aren't formatted with the dash/hyphen
+        plain_pattern = r'<p>([^<]{2,50})\s+by\s+([^<]{2,50})<\/p>'
+        plain_matches = re.finditer(plain_pattern, html_content, re.IGNORECASE | re.DOTALL)
         
         songs = []
         for match in matches:
@@ -40,6 +45,27 @@ def extract_songs_from_html(html_content):
                     'Artist': artist,
                     'YouTube_Link': ''
                 })
+        
+        # Process additional "song by artist" mentions
+        for match in plain_matches:
+            if match.group(1) and match.group(2):
+                song = match.group(1).strip()
+                artist = match.group(2).strip()
+                
+                # Check if this song is already in our list
+                exists = False
+                for existing in songs:
+                    if existing['Song'].lower() == song.lower() and existing['Artist'].lower() == artist.lower():
+                        exists = True
+                        break
+                
+                # Add if it's a new song
+                if not exists:
+                    songs.append({
+                        'Song': song,
+                        'Artist': artist,
+                        'YouTube_Link': ''
+                    })
         
         # Filter out any false positives (very short song names, etc.)
         valid_songs = [s for s in songs if len(s['Song']) > 2 and len(s['Artist']) > 2]
@@ -63,11 +89,12 @@ def extract_spotify_link(html_content):
         logger.error(f"Error extracting Spotify link: {str(e)}")
         return None
 
-def revamp_existing_blog(post_content, post_title):
+def revamp_existing_blog(post_content, post_title, youtube_api=None):
     """
     Revamp an existing blog post to match current format and style
     :param post_content: HTML content from WordPress post
     :param post_title: Title of the blog post
+    :param youtube_api: Optional YouTube API client to fetch missing links
     :return: Revamped blog post content in HTML format
     """
     # Extract songs and Spotify link from the existing content
@@ -76,6 +103,43 @@ def revamp_existing_blog(post_content, post_title):
     
     # Clean the content by removing HTML tags to get plain text for analysis
     plain_content = trafilatura.extract(post_content)
+    
+    # Fetch YouTube links for songs if they're missing and YouTube API is provided
+    if youtube_api and songs:
+        logger.info(f"Found {len(songs)} songs, checking for missing YouTube links...")
+        songs_missing_links = [s for s in songs if not s['YouTube_Link']]
+        
+        if songs_missing_links:
+            logger.info(f"Fetching YouTube links for {len(songs_missing_links)} songs...")
+            
+            for i, song in enumerate(songs_missing_links):
+                try:
+                    # Create a search query combining song and artist
+                    search_query = f"{song['Song']} - {song['Artist']}"
+                    
+                    # Get YouTube link with error handling
+                    youtube_link = youtube_api.get_video_link(search_query)
+                    
+                    # Update the link in the songs list
+                    if youtube_link:
+                        # Find this song in the original songs list and update it
+                        for s in songs:
+                            if s['Song'] == song['Song'] and s['Artist'] == song['Artist']:
+                                s['YouTube_Link'] = youtube_link
+                                break
+                        
+                        logger.info(f"Found YouTube link for '{search_query}': {youtube_link}")
+                    else:
+                        logger.warning(f"No YouTube link found for '{search_query}'")
+                        
+                except Exception as e:
+                    # Handle YouTube API errors gracefully
+                    if "quota" in str(e).lower():
+                        logger.warning("YouTube API quota exceeded. Stopping YouTube link fetching.")
+                        break
+                    else:
+                        query = f"{song['Song']} - {song['Artist']}"
+                        logger.warning(f"Could not fetch YouTube link for '{query}': {str(e)}")
     
     # Initialize OpenAI client
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
