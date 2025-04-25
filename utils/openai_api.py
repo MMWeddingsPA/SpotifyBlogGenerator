@@ -126,14 +126,22 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
             temperature=0.7
         )
         
-        # Return the generated content with cleanup to remove quotes and html tags
+        # Return the generated content
         content = response.choices[0].message.content
         
-        # Clean up any stray quotes or html tags that might be in the response
-        content = content.replace('"<html', '').replace('html>"', '')
-        content = content.replace('">', '').replace('<"', '')
-        content = content.replace('"```html', '').replace('```"', '')
-        content = content.strip('"\'<> ')
+        # Minimal cleanup - only remove markdown code blocks and surrounding quotes
+        # Be careful NOT to alter HTML tags
+        if content.startswith('```html'):
+            content = content.replace('```html', '', 1)
+            if content.endswith('```'):
+                content = content[:-3]
+        
+        # Remove any surrounding quotes but preserve HTML tags
+        content = content.strip('"\'')
+        
+        # Debug output of content structure
+        print(f"Content first 100 chars: {content[:100]}")
+        print(f"Content last 100 chars: {content[-100:]}")
         
         return content
 
