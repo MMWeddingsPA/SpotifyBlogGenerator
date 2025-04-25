@@ -104,10 +104,19 @@ def find_latest_csv():
     latest_file = max(csv_files, key=os.path.getmtime)
     return latest_file
 
-def save_processed_csv(df, operation_type):
-    """Save CSV with timestamp and operation type"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"processed_playlists_{operation_type}_{timestamp}.csv"
+def save_processed_csv(df, operation_type, overwrite_existing=False):
+    """Save CSV with timestamp and operation type 
+    If overwrite_existing is True, use the existing file if available instead of creating a new one"""
+    
+    if overwrite_existing and hasattr(st.session_state, 'last_saved_csv') and st.session_state.last_saved_csv:
+        # Use the existing filename
+        filename = st.session_state.last_saved_csv
+    else:
+        # Create a new filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"processed_playlists_{operation_type}_{timestamp}.csv"
+        
+    # Save the dataframe
     save_csv(df, filename)
     st.session_state.last_saved_csv = filename
     return filename
@@ -244,7 +253,7 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                 save_updates = True
                 
                 # Note the file in results for display purposes
-                filename = save_processed_csv(st.session_state.df, "youtube")
+                filename = save_processed_csv(st.session_state.df, "youtube", overwrite_existing=True)
                 results['youtube_file'] = filename
                 st.success("✅ YouTube links fetched and saved")
             else:
@@ -284,7 +293,7 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
 
         # Save changes to CSV if we made updates
         if save_updates:
-            filename = save_processed_csv(st.session_state.df, "updated")
+            filename = save_processed_csv(st.session_state.df, "updated", overwrite_existing=True)
             results['updated_file'] = filename
 
         # Generate blog post if selected
@@ -526,7 +535,7 @@ def main():
                         st.session_state.df = load_csv(selected_csv)
                         st.session_state.last_saved_csv = selected_csv
                         st.success(f"✅ Loaded {selected_csv} successfully!")
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"❌ Error loading selected CSV: {str(e)}")
         
@@ -571,7 +580,7 @@ def main():
                     
                     # Save the merged/uploaded data with timestamp
                     if st.session_state.df is not None:
-                        filename = save_processed_csv(st.session_state.df, "uploaded")
+                        filename = save_processed_csv(st.session_state.df, "uploaded", overwrite_existing=True)
                         st.session_state.last_saved_csv = filename
                         st.info(f"💾 Data saved to {filename}")
                     
@@ -729,9 +738,9 @@ def main():
                             ], ignore_index=True)
                             
                             # Save the updated dataframe
-                            filename = save_processed_csv(st.session_state.df, "added_song")
+                            filename = save_processed_csv(st.session_state.df, "added_song", overwrite_existing=True)
                             st.success(f"✅ Added new song to playlist and saved to {filename}!")
-                            st.experimental_rerun()
+                            st.rerun()
                     
                     with col2:
                         # Button to edit Spotify link for the entire playlist
@@ -758,9 +767,9 @@ def main():
                                         st.session_state.df.at[idx, 'Spotify_Link'] = spotify_link
                                         
                                     # Save the updated dataframe
-                                    filename = save_processed_csv(st.session_state.df, "updated_spotify")
+                                    filename = save_processed_csv(st.session_state.df, "updated_spotify", overwrite_existing=True)
                                     st.success(f"✅ Updated Spotify link for playlist '{selected_edit_playlist}' and saved to {filename}!")
-                                    st.experimental_rerun()
+                                    st.rerun()
                     
                     with col3:
                         # Export just this playlist to a CSV
@@ -807,9 +816,9 @@ def main():
                                             st.session_state.df.at[orig_idx, 'Song_Artist'] = f"{song}-{artist}"
                             
                             # Save the updated dataframe
-                            filename = save_processed_csv(st.session_state.df, "edited_songs")
+                            filename = save_processed_csv(st.session_state.df, "edited_songs", overwrite_existing=True)
                             st.success(f"✅ Saved changes to songs in playlist '{selected_edit_playlist}' to {filename}!")
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.info("No changes detected to save.")
             
@@ -892,9 +901,9 @@ def main():
                         ], ignore_index=True)
                         
                         # Save updated dataframe
-                        filename = save_processed_csv(st.session_state.df, "new_playlist")
+                        filename = save_processed_csv(st.session_state.df, "new_playlist", overwrite_existing=True)
                         st.success(f"✅ Created new playlist '{new_playlist_name}' with {len(new_rows)} songs and saved to {filename}!")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.warning("⚠️ Please enter a playlist name")
             
@@ -927,9 +936,9 @@ def main():
                                 ]
                                 
                                 # Save the updated dataframe
-                                filename = save_processed_csv(st.session_state.df, "deleted_playlist")
+                                filename = save_processed_csv(st.session_state.df, "deleted_playlist", overwrite_existing=True)
                                 st.success(f"✅ Deleted playlist '{selected_manage_playlist}' and saved to {filename}!")
-                                st.experimental_rerun()
+                                st.rerun()
                     
                     with col2:
                         # Rename playlist
@@ -962,9 +971,9 @@ def main():
                                     ] = formatted_new_name
                                     
                                     # Save the updated dataframe
-                                    filename = save_processed_csv(st.session_state.df, "renamed_playlist")
+                                    filename = save_processed_csv(st.session_state.df, "renamed_playlist", overwrite_existing=True)
                                     st.success(f"✅ Renamed playlist to '{new_name}' and saved to {filename}!")
-                                    st.experimental_rerun()
+                                    st.rerun()
                                 else:
                                     st.warning("⚠️ Please enter a new name for the playlist")
         else:
@@ -998,7 +1007,7 @@ def main():
                             if blog_files:
                                 # Auto-select another blog
                                 selected_blog = blog_files[0]
-                                st.experimental_rerun()
+                                st.rerun()
                             else:
                                 st.info("No more blog posts available.")
                                 st.stop()
@@ -1028,7 +1037,7 @@ def main():
                             )
                             
                             st.success(f"✅ Changes saved to {new_filename}")
-                            st.experimental_rerun()
+                            st.rerun()
                         except Exception as e:
                             st.error(f"❌ Error saving changes: {str(e)}")
                 
