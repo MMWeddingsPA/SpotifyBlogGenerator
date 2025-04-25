@@ -6,7 +6,7 @@ from datetime import datetime
 import traceback
 from utils.fixed_youtube_api import YouTubeAPI
 from utils.spotify_api import SpotifyAPI
-from utils.openai_api import generate_blog_post
+from utils.openai_api import generate_blog_post, revamp_existing_blog
 from utils.fixed_wordpress_api import WordPressAPI
 from utils.corrected_csv_handler import load_csv, save_csv, create_empty_playlist_df
 
@@ -495,7 +495,7 @@ def main():
             st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables")
     
     # Create tabs for different functions
-    tab1, tab2, tab3 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts", "Revamp Existing Posts"])
     
     # Auto-load the latest CSV if available and no CSV is loaded yet
     if st.session_state.df is None:
@@ -1097,6 +1097,170 @@ def main():
                                     st.error(f"❌ Error posting to WordPress: {str(e)}")
         else:
             st.info("No saved blog posts found. Generate some blog posts first!")
+            
+    # Tab 4: Revamp Existing WordPress Posts
+    with tab4:
+        st.subheader("Revamp Existing WordPress Posts")
+        
+        # Only show if WordPress API is properly initialized
+        if wordpress_api is None:
+            st.error("WordPress API not configured. Please set up the WordPress API credentials in your environment variables.")
+            st.info("Required: WORDPRESS_API_URL, WORDPRESS_USERNAME, WORDPRESS_PASSWORD")
+        else:
+            # Search options
+            st.write("### Find WordPress Posts to Revamp")
+            search_col1, search_col2 = st.columns(2)
+            
+            with search_col1:
+                search_term = st.text_input("Search by keywords", 
+                    placeholder="Enter keywords to search for posts...")
+                
+            with search_col2:
+                # Get categories for filtering
+                try:
+                    categories = wordpress_api.get_categories()
+                    category_options = {cat['name']: cat['id'] for cat in categories}
+                    # Add "All Categories" option
+                    category_options = {"All Categories": None, **category_options}
+                    
+                    selected_category = st.selectbox(
+                        "Filter by category",
+                        options=list(category_options.keys())
+                    )
+                    category_id = category_options.get(selected_category)
+                except Exception as e:
+                    st.error(f"Error loading categories: {str(e)}")
+                    categories = []
+                    selected_category = None
+                    category_id = None
+            
+            # Get posts button
+            posts_per_page = st.slider("Posts per page", min_value=5, max_value=50, value=10, step=5)
+            if st.button("🔍 Search Posts"):
+                with st.spinner("Fetching posts from WordPress..."):
+                    try:
+                        # Use the search term and category if provided
+                        result = wordpress_api.get_posts(
+                            search_term=search_term if search_term else None,
+                            category=category_id,
+                            per_page=posts_per_page
+                        )
+                        
+                        if result and 'posts' in result and result['posts']:
+                            posts = result['posts']
+                            st.success(f"Found {result['total']} posts (showing page {result['current_page']} of {result['pages']})")
+                            
+                            # Store posts in session state
+                            st.session_state.wordpress_posts = posts
+                            
+                            # Display posts in a table
+                            post_data = []
+                            for post in posts:
+                                # Truncate title and excerpt for display
+                                title = post['title'][:50] + "..." if len(post['title']) > 50 else post['title']
+                                date = post['date'].split('T')[0] if 'T' in post['date'] else post['date']
+                                post_data.append({
+                                    "ID": post['id'],
+                                    "Title": title,
+                                    "Date": date,
+                                    "Link": post['link']
+                                })
+                            
+                            # Convert to DataFrame for display
+                            post_df = pd.DataFrame(post_data)
+                            st.dataframe(post_df, hide_index=True, use_container_width=True)
+                        else:
+                            st.warning("No posts found matching your criteria.")
+                            st.session_state.wordpress_posts = []
+                    except Exception as e:
+                        st.error(f"Error fetching posts: {str(e)}")
+                        st.session_state.wordpress_posts = []
+            
+            # Post selection and revamping
+            st.write("### Revamp Selected Post")
+            
+            if 'wordpress_posts' in st.session_state and st.session_state.wordpress_posts:
+                # Create a dictionary of post titles mapped to IDs for selection
+                post_options = {f"{post['id']}: {post['title'][:50]}...": post['id'] 
+                               for post in st.session_state.wordpress_posts}
+                
+                selected_post_title = st.selectbox(
+                    "Select a post to revamp",
+                    options=list(post_options.keys()),
+                    index=0
+                )
+                
+                if selected_post_title:
+                    selected_post_id = post_options[selected_post_title]
+                    
+                    # Fetch the complete post content
+                    if st.button("📄 Load Full Post Content"):
+                        with st.spinner("Fetching post content..."):
+                            try:
+                                post = wordpress_api.get_post(selected_post_id)
+                                if post:
+                                    # Store the post in session state
+                                    st.session_state.selected_post = post
+                                    
+                                    # Show post preview
+                                    st.write("### Original Post Content")
+                                    with st.expander("View Original HTML Content", expanded=False):
+                                        st.code(post['content'], language="html")
+                                    
+                                    # Show rendered preview
+                                    st.write("### Original Post Preview")
+                                    st.markdown(post['content'], unsafe_allow_html=True)
+                                    
+                                    # Option to revamp
+                                    if st.button("✨ Revamp This Post"):
+                                        with st.spinner("Revamping post content... This may take a minute..."):
+                                            try:
+                                                # Revamp the content
+                                                revamped_content = revamp_existing_blog(post['content'], post['title'])
+                                                
+                                                # Store the revamped content
+                                                st.session_state.revamped_content = revamped_content
+                                                
+                                                # Show revamped preview
+                                                st.write("### Revamped Post Preview")
+                                                st.markdown(revamped_content, unsafe_allow_html=True)
+                                                
+                                                # Edit options
+                                                st.write("### Edit Revamped Content")
+                                                edited_content = st.text_area(
+                                                    "HTML Content (you can edit this)",
+                                                    value=revamped_content,
+                                                    height=400
+                                                )
+                                                
+                                                # Update post options
+                                                if st.button("📝 Create as New Draft"):
+                                                    with st.spinner("Creating new draft post..."):
+                                                        try:
+                                                            # Create a new draft post
+                                                            title = f"Revamped: {post['title']}"
+                                                            result = wordpress_api.create_post(
+                                                                title=title,
+                                                                content=edited_content,
+                                                                status="draft",
+                                                                categories=post.get('categories', [])
+                                                            )
+                                                            
+                                                            if result.get('success'):
+                                                                st.success("✅ New draft post created successfully!")
+                                                                st.write(f"Edit URL: {result.get('edit_url')}")
+                                                            else:
+                                                                st.error(f"Error creating draft: {result.get('error')}")
+                                                        except Exception as e:
+                                                            st.error(f"Error creating draft: {str(e)}")
+                                            except Exception as e:
+                                                st.error(f"Error revamping content: {str(e)}")
+                                else:
+                                    st.error("Could not fetch post content.")
+                            except Exception as e:
+                                st.error(f"Error fetching post: {str(e)}")
+            else:
+                st.info("Search for posts to begin revamping content.")
 
 if __name__ == "__main__":
     import re  # Import at the top

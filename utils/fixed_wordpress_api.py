@@ -334,6 +334,169 @@ class WordPressAPI:
         
         return result
     
+    def get_posts(self, search_term=None, category=None, per_page=10, page=1, status='publish'):
+        """
+        Get posts from WordPress with filtering options
+        :param search_term: Optional search term to filter posts
+        :param category: Optional category ID to filter posts 
+        :param per_page: Number of posts per page (default 10)
+        :param page: Page number (default 1)
+        :param status: Post status to filter by (default 'publish')
+        :return: List of posts if successful, empty list if failed
+        """
+        try:
+            # Build query parameters
+            params = {
+                'per_page': per_page,
+                'page': page,
+                'status': status,
+                '_embed': 'true'  # Include featured images and other embedded content
+            }
+            
+            # Add optional filters
+            if search_term:
+                params['search'] = search_term
+            
+            if category:
+                params['categories'] = category
+                
+            # Construct the endpoint URL with parameters
+            endpoint = f"{self.api_url}/posts"
+            query_string = "&".join([f"{k}={urllib.parse.quote(str(v))}" for k, v in params.items()])
+            full_url = f"{endpoint}?{query_string}"
+            
+            logger.info(f"Getting posts from: {full_url}")
+            
+            # Prepare headers with auth and standard headers
+            headers = self.standard_headers.copy()
+            headers.update(self.auth_header)
+            
+            # Make the request
+            response = requests.get(
+                full_url,
+                headers=headers,
+                timeout=20
+            )
+            
+            # Log response details
+            logger.info(f"Posts response code: {response.status_code}")
+            
+            if response.status_code == 200:
+                posts = response.json()
+                
+                # Extract pagination information from headers
+                total_posts = response.headers.get('X-WP-Total', '0')
+                total_pages = response.headers.get('X-WP-TotalPages', '0')
+                logger.info(f"Found {len(posts)} posts (page {page} of {total_pages}, total: {total_posts})")
+                
+                # Process and clean posts for easier handling
+                processed_posts = []
+                for post in posts:
+                    # Extract the needed information
+                    processed_post = {
+                        'id': post.get('id'),
+                        'title': post.get('title', {}).get('rendered', ''),
+                        'content': post.get('content', {}).get('rendered', ''),
+                        'excerpt': post.get('excerpt', {}).get('rendered', ''),
+                        'date': post.get('date'),
+                        'modified': post.get('modified'),
+                        'slug': post.get('slug'),
+                        'link': post.get('link'),
+                        'categories': post.get('categories', []),
+                        'tags': post.get('tags', []),
+                    }
+                    
+                    # Add featured image if available
+                    if '_embedded' in post and 'wp:featuredmedia' in post['_embedded'] and len(post['_embedded']['wp:featuredmedia']) > 0:
+                        featured_media = post['_embedded']['wp:featuredmedia'][0]
+                        processed_post['featured_image'] = {
+                            'id': featured_media.get('id'),
+                            'url': featured_media.get('source_url', ''),
+                            'alt': featured_media.get('alt_text', '')
+                        }
+                    
+                    processed_posts.append(processed_post)
+                
+                return {
+                    'posts': processed_posts,
+                    'total': int(total_posts),
+                    'pages': int(total_pages),
+                    'current_page': page
+                }
+            else:
+                # Log the full error response
+                logger.error(f"Failed to get posts. Status code: {response.status_code}")
+                logger.error(f"Response content: {response.text}")
+                return {'posts': [], 'total': 0, 'pages': 0, 'current_page': page}
+            
+        except Exception as e:
+            logger.error(f"Error getting posts: {str(e)}")
+            logger.exception("Full exception traceback:")
+            return {'posts': [], 'total': 0, 'pages': 0, 'current_page': page}
+    
+    def get_post(self, post_id):
+        """
+        Get a specific post by ID
+        :param post_id: WordPress post ID
+        :return: Post details if successful, None if failed
+        """
+        try:
+            endpoint = f"{self.api_url}/posts/{post_id}?_embed=true"
+            logger.info(f"Getting post from: {endpoint}")
+            
+            # Prepare headers with auth and standard headers
+            headers = self.standard_headers.copy()
+            headers.update(self.auth_header)
+            
+            # Make the request
+            response = requests.get(
+                endpoint,
+                headers=headers,
+                timeout=20
+            )
+            
+            # Log response details
+            logger.info(f"Post response code: {response.status_code}")
+            
+            if response.status_code == 200:
+                post = response.json()
+                
+                # Process the post for easier handling
+                processed_post = {
+                    'id': post.get('id'),
+                    'title': post.get('title', {}).get('rendered', ''),
+                    'content': post.get('content', {}).get('rendered', ''),
+                    'excerpt': post.get('excerpt', {}).get('rendered', ''),
+                    'date': post.get('date'),
+                    'modified': post.get('modified'),
+                    'slug': post.get('slug'),
+                    'link': post.get('link'),
+                    'categories': post.get('categories', []),
+                    'tags': post.get('tags', []),
+                    'status': post.get('status')
+                }
+                
+                # Add featured image if available
+                if '_embedded' in post and 'wp:featuredmedia' in post['_embedded'] and len(post['_embedded']['wp:featuredmedia']) > 0:
+                    featured_media = post['_embedded']['wp:featuredmedia'][0]
+                    processed_post['featured_image'] = {
+                        'id': featured_media.get('id'),
+                        'url': featured_media.get('source_url', ''),
+                        'alt': featured_media.get('alt_text', '')
+                    }
+                
+                return processed_post
+            else:
+                # Log the full error response
+                logger.error(f"Failed to get post. Status code: {response.status_code}")
+                logger.error(f"Response content: {response.text}")
+                return None
+            
+        except Exception as e:
+            logger.error(f"Error getting post: {str(e)}")
+            logger.exception("Full exception traceback:")
+            return None
+    
     def get_categories(self):
         """Get available categories from WordPress"""
         try:
