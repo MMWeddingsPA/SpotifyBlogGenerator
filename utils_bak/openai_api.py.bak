@@ -111,12 +111,6 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
                     - Thoughtful song selections with YouTube links for couples to preview
                     - Clean, visually appealing formatting similar to existing blog posts
                     
-                    IMPORTANT FORMATTING RULES:
-                    - DO NOT include opening or closing HTML tags like <html>, </html> or ```html
-                    - DO NOT wrap your response in quotation marks or any markdown code blocks
-                    - Start directly with the H3 subtitle and end with the final paragraph
-                    - Do not include any stray characters, quotes, or HTML comments
-                    
                     Your content should match the premium brand voice of Moments & Memories, which balances professional expertise with warm, 
                     personal engagement. Format songs and sections similar to existing blog posts on mmweddingspa.com."""
                 },
@@ -126,16 +120,8 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
             temperature=0.7
         )
         
-        # Return the generated content with cleanup to remove quotes and html tags
-        content = response.choices[0].message.content
-        
-        # Clean up any stray quotes or html tags that might be in the response
-        content = content.replace('"<html', '').replace('html>"', '')
-        content = content.replace('">', '').replace('<"', '')
-        content = content.replace('"```html', '').replace('```"', '')
-        content = content.strip('"\'<> ')
-        
-        return content
+        # Return the generated content
+        return response.choices[0].message.content
 
     except Exception as e:
         raise Exception(f"Error generating blog post: {str(e)}")
