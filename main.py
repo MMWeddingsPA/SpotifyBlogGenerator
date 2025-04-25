@@ -648,8 +648,15 @@ def main():
                                         if 'blog_file' in results:
                                             st.success(f"✅ Blog post saved to {results['blog_file']} for future reference")
                                         
-                                        # Show the blog content in a text area
+                                        # Display the formatted blog content with HTML rendering
                                         blog_content = results['blog_post']
+                                        
+                                        # First show a preview with HTML rendered
+                                        st.subheader("Preview (as it will appear on WordPress)")
+                                        st.markdown(blog_content, unsafe_allow_html=True)
+                                        
+                                        # Then show the raw HTML content in a text area for editing
+                                        st.subheader("HTML Source (for editing)")
                                         st.text_area("", blog_content, height=300)
                                         
                                         # WordPress posting section
@@ -665,6 +672,10 @@ def main():
                                             if st.button("🚀 Post to WordPress", key=button_key):
                                                 with st.spinner("📝 Creating draft post in WordPress..."):
                                                     try:
+                                                        # Show a preview of what will be posted
+                                                        st.subheader("Content being posted to WordPress:")
+                                                        st.markdown(blog_content, unsafe_allow_html=True)
+                                                        
                                                         # Post to WordPress as draft
                                                         post_result = wordpress_api.create_post(
                                                             title=title,
@@ -1020,6 +1031,13 @@ def main():
                 
                 # Allow editing the title and content
                 edited_title = st.text_input("Blog Title", value=title, key="blog_title_edit")
+                
+                # Display the blog post in a pretty format with HTML rendered
+                st.subheader("Blog Preview")
+                st.markdown(content, unsafe_allow_html=True)
+                
+                # Edit in a text area
+                st.subheader("Edit Content")
                 edited_content = st.text_area("Blog Content", content, height=400, key="blog_content_edit")
                 
                 # Add a save button if edits were made
@@ -1054,6 +1072,9 @@ def main():
                                     # Use edited title and content if available
                                     post_title = edited_title
                                     post_content = edited_content
+                                    # Display a preview of what will be posted
+                                    st.markdown("**Preview of content being posted to WordPress:**", unsafe_allow_html=True)
+                                    st.markdown(post_content, unsafe_allow_html=True)
                                     
                                     # Post to WordPress as draft
                                     result = wordpress_api.create_post(
