@@ -195,8 +195,17 @@ def clean_playlist_name_for_blog(playlist_name):
     cleaned = re.sub(r'^\d{3}\s+', '', playlist_name)
     return cleaned
 
-def process_playlist(playlist, youtube_api, spotify_api, operations):
-    """Process a single playlist with error handling and progress tracking"""
+def process_playlist(playlist, youtube_api, spotify_api, operations, style_options=None):
+    """
+    Process a single playlist with error handling and progress tracking
+    
+    Parameters:
+    - playlist: Name of the playlist to process
+    - youtube_api: YouTube API client instance
+    - spotify_api: Spotify API client instance
+    - operations: List of operations to perform ('YouTube', 'Spotify', 'Blog')
+    - style_options: Optional dictionary of style options for blog generation
+    """
     try:
         # Filter dataframe to get only the songs for this playlist
         playlist_df = st.session_state.df[st.session_state.df['Playlist'] == playlist].copy()
@@ -321,7 +330,8 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                 blog_post = generate_blog_post(
                     playlist_name=clean_name,
                     songs_df=playlist_df,
-                    spotify_link=spotify_link
+                    spotify_link=spotify_link,
+                    style_options=style_options
                 )
                 results['blog_post'] = blog_post
                 
@@ -616,6 +626,58 @@ def main():
             with col3:
                 generate_blog = st.checkbox("Generate Blog Post", value=True)
             
+            # Blog customization options (shown when Generate Blog Post is selected)
+            blog_style_options = {}
+            if generate_blog:
+                with st.expander("Blog Customization Options", expanded=False):
+                    st.write("Customize your blog post style:")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        tone = st.selectbox(
+                            "Blog Tone",
+                            options=["conversational and warm", "professional and elegant", 
+                                     "fun and upbeat", "romantic and emotional"],
+                            index=0
+                        )
+                        blog_style_options['tone'] = tone
+                        
+                        mood = st.selectbox(
+                            "Overall Mood",
+                            options=["romantic and celebratory", "elegant and sophisticated", 
+                                     "fun and energetic", "nostalgic and sentimental", 
+                                     "modern and trendy"],
+                            index=0
+                        )
+                        blog_style_options['mood'] = mood
+                    
+                    with col2:
+                        audience = st.selectbox(
+                            "Target Audience",
+                            options=["engaged couples", "modern couples", "traditional couples", 
+                                     "brides", "wedding planners"],
+                            index=0
+                        )
+                        blog_style_options['audience'] = audience
+                        
+                        section_count = st.select_slider(
+                            "Number of Sections",
+                            options=[3, 4, 5, 6, 7],
+                            value=4
+                        )
+                        blog_style_options['section_count'] = section_count
+                    
+                    title_style = st.selectbox(
+                        "Section Title Style",
+                        options=["descriptive and catchy", "short and elegant", 
+                                 "fun and playful", "romantic", "themed around moments"],
+                        index=0
+                    )
+                    blog_style_options['title_style'] = title_style
+                    
+                    st.info("These options will be used to customize the AI-generated blog post.")
+            
             # Process button
             if selected_playlists:
                 if st.button("🚀 Process Selected Playlists"):
@@ -630,7 +692,7 @@ def main():
                         # Process each playlist
                         for playlist in selected_playlists:
                             with st.expander(f"Processing: {playlist}", expanded=True):
-                                success, results = process_playlist(playlist, youtube_api, spotify_api, operations)
+                                success, results = process_playlist(playlist, youtube_api, spotify_api, operations, blog_style_options)
                                 
                                 if success:
                                     # Display results

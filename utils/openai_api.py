@@ -299,12 +299,28 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None):
         logger.error(f"Error revamping blog post: {str(e)}")
         raise Exception(f"Error revamping blog post: {str(e)}")
 
-def generate_blog_post(playlist_name, songs_df, spotify_link=None):
+def generate_blog_post(playlist_name, songs_df, spotify_link=None, 
+                  style_options=None):
     """
     Generate a formatted blog post using AI with consistent structure and style
+    
+    Parameters:
+    - playlist_name: Name of the playlist
+    - songs_df: DataFrame containing songs
+    - spotify_link: Optional Spotify playlist link
+    - style_options: Dictionary of style options to customize the blog post:
+        - tone: Tone of the blog post (e.g., 'conversational', 'professional', 'romantic', 'upbeat')
+        - section_count: Number of sections to divide songs into (e.g., 3, 4, 5)
+        - mood: Overall mood to emphasize (e.g., 'elegant', 'fun', 'emotional', 'energetic')
+        - audience: Target audience focus (e.g., 'couples', 'brides', 'modern couples', 'traditional')
+        - title_style: Style for section titles (e.g., 'descriptive', 'short', 'playful', 'elegant')
     """
     # Use standard OpenAI client with GPT-4o
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    # Initialize default style options if not provided
+    if style_options is None:
+        style_options = {}
 
     # Extract Spotify playlist ID if we have a link
     spotify_playlist_id = None
@@ -343,7 +359,44 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
                 
         sections.append("\n".join(songs_list))
 
-    sections_text = "\n\n".join(f"Section {i+1} - Songs for the {['Opening', 'Middle', 'Peak', 'Wind-down', 'Finale'][i % 5]} Phase:\n{songs}" for i, songs in enumerate(sections))
+    # Apply custom section count if provided
+    section_count = style_options.get('section_count', 4)
+    section_count = max(3, min(7, int(section_count) if str(section_count).isdigit() else 4))
+    
+    # Recalculate songs per section based on custom section count
+    if section_count:
+        songs_per_section = max(2, min(7, total_songs // section_count))
+        # Re-segment the songs
+        sections = []
+        for i in range(0, total_songs, songs_per_section):
+            section_songs = songs_df.iloc[i:i + songs_per_section]
+            songs_list = []
+            
+            for _, row in section_songs.iterrows():
+                song = row['Song']
+                artist = row['Artist']
+                youtube_link = row['YouTube_Link']
+                
+                # Only use YouTube links (not Spotify) for individual songs
+                if youtube_link and str(youtube_link).strip():
+                    # Check if YouTube link is valid and contains youtube.com
+                    if 'youtube.com' in str(youtube_link) or 'youtu.be' in str(youtube_link):
+                        # Format using HTML for better WordPress compatibility
+                        songs_list.append(f'<p><a href="{youtube_link}" target="_blank">{song} – {artist}</a></p>')
+                    else:
+                        songs_list.append(f'<p>{song} – {artist}</p>')
+                else:
+                    songs_list.append(f'<p>{song} – {artist}</p>')
+                    
+            sections.append("\n".join(songs_list))
+    
+    # Get customization options with defaults
+    tone = style_options.get('tone', 'conversational and warm')
+    mood = style_options.get('mood', 'romantic and celebratory')
+    audience = style_options.get('audience', 'engaged couples')
+    title_style = style_options.get('title_style', 'descriptive and catchy')
+    
+    sections_text = "\n\n".join(f"Section {i+1} - Songs for the {['Opening', 'Middle', 'Peak', 'Wind-down', 'Finale', 'Transition', 'Closing'][i % 7]} Phase:\n{songs}" for i, songs in enumerate(sections))
 
     prompt = f"""
     Create a wedding DJ blog post for the playlist "{clean_name}" following this exact structure and HTML formatting:
@@ -352,8 +405,8 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     - Main title: Already provided by WordPress (don't include an H1 tag)
     - Subtitle: Use an <h3> tag with the text "Your Perfect Soundtrack for Love, Laughter, and Celebration"
     - Introduction: Use proper <p> tags for an engaging opening about the playlist's mood and purpose (2-3 paragraphs)
-    - 4-5 themed sections with catchy titles similar to these examples, each with:
-        * <h2> tag for section titles like "Find Great Vibes from Day One" or "Smooth Moves That Elevate the Fun" 
+    - {section_count} themed sections with {title_style} titles, each with:
+        * <h2> tag for section titles 
         * <p> tags for paragraphs explaining why these songs work well together
         * Listed songs with <p> tags for each song, including the YouTube links exactly as provided
     - Conclusion: <h2> tag for "Why This Playlist Works for Your Wedding" with <p> tags for content
@@ -371,9 +424,11 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     - Make sure all HTML is properly structured and WordPress-compatible
 
     3. Content Style Guidelines:
-    - Conversational and warm tone like an expert wedding DJ
-    - Focus on creating atmosphere and emotional moments for each section
-    - Blend practical details with romantic storytelling
+    - Use a {tone} tone throughout the blog post
+    - Create a {mood} atmosphere in your descriptions
+    - Target your writing specifically for {audience}
+    - Focus on creating emotional moments for each section
+    - Blend practical details with storytelling
     - Keep each section concise but meaningful (3-4 paragraphs max per section)
     - Use compelling descriptive language that evokes mood and setting
     - Emphasize how these songs enhance specific wedding moments
