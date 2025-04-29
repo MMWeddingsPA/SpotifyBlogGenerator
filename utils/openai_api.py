@@ -89,6 +89,32 @@ def extract_spotify_link(html_content):
         logger.error(f"Error extracting Spotify link: {str(e)}")
         return None
 
+def extract_spotify_playlist_id(spotify_url):
+    """
+    Extract the playlist ID from a Spotify URL
+    Example: https://open.spotify.com/playlist/37i9dQZF1DXdPec7aLTmlC -> 37i9dQZF1DXdPec7aLTmlC
+    """
+    if not spotify_url:
+        return None
+        
+    try:
+        # Match playlist ID using regex pattern
+        # Format could be: 
+        # - https://open.spotify.com/playlist/37i9dQZF1DXdPec7aLTmlC
+        # - https://open.spotify.com/playlist/37i9dQZF1DXdPec7aLTmlC?si=abc123
+        # - spotify:playlist:37i9dQZF1DXdPec7aLTmlC
+        pattern = r'(?:spotify:playlist:|spotify\.com/playlist/)([a-zA-Z0-9]{22})'
+        match = re.search(pattern, spotify_url)
+        
+        if match:
+            return match.group(1)
+        else:
+            logger.warning(f"Could not extract playlist ID from Spotify URL: {spotify_url}")
+            return None
+    except Exception as e:
+        logger.error(f"Error extracting Spotify playlist ID: {str(e)}")
+        return None
+
 def revamp_existing_blog(post_content, post_title, youtube_api=None):
     """
     Revamp an existing blog post to match current format and style
@@ -100,6 +126,12 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None):
     # Extract songs and Spotify link from the existing content
     songs = extract_songs_from_html(post_content)
     spotify_link = extract_spotify_link(post_content)
+    
+    # Extract Spotify playlist ID if we have a link
+    spotify_playlist_id = None
+    if spotify_link:
+        spotify_playlist_id = extract_spotify_playlist_id(spotify_link)
+        logger.info(f"Extracted Spotify playlist ID: {spotify_playlist_id}")
     
     # Clean the content by removing HTML tags to get plain text for analysis
     plain_content = trafilatura.extract(post_content)
@@ -177,7 +209,10 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None):
     - Use proper HTML tags: <h2> for section headers, <h3> for subtitles, <p> for paragraphs
     - For song links, format as: <p><a href="YOUTUBE_LINK" target="_blank">SONG NAME – ARTIST NAME</a></p>
     - Add proper spacing between sections using line breaks
-    - If Spotify link exists, format as: <p><strong>Listen to the full playlist: </strong><a href="SPOTIFY_LINK" target="_blank">Spotify Playlist</a></p>
+    - If Spotify link exists, format as: 
+      * First add text link: <p><strong>Listen to the full playlist: </strong><a href="SPOTIFY_LINK" target="_blank">Spotify Playlist</a></p>
+      * Then add embedded player: <iframe src="https://open.spotify.com/embed/playlist/PLAYLIST_ID" width="100%" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+        (where PLAYLIST_ID is extracted from the Spotify link - it's the part after "playlist/" in the URL)
     - Add a class to important elements: class="highlight-section" for key section headers
     - Make sure all HTML is properly structured and WordPress-compatible
     
@@ -246,6 +281,14 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None):
         # Remove any surrounding quotes but preserve HTML tags
         content = content.strip('"\'')
         
+        # Replace PLAYLIST_ID with actual Spotify playlist ID if available
+        if spotify_playlist_id:
+            # Replace the PLAYLIST_ID placeholder with the actual ID in the iframe
+            iframe_pattern = r'src="https://open\.spotify\.com/embed/playlist/PLAYLIST_ID"'
+            iframe_replacement = f'src="https://open.spotify.com/embed/playlist/{spotify_playlist_id}"'
+            content = re.sub(iframe_pattern, iframe_replacement, content)
+            logger.info(f"Added Spotify embed with playlist ID: {spotify_playlist_id}")
+        
         # Debug output of content structure
         logger.info(f"Revamped content first 100 chars: {content[:100]}")
         logger.info(f"Revamped content last 100 chars: {content[-100:]}")
@@ -263,6 +306,12 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     # Use standard OpenAI client with GPT-4o
     client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+    # Extract Spotify playlist ID if we have a link
+    spotify_playlist_id = None
+    if spotify_link:
+        spotify_playlist_id = extract_spotify_playlist_id(spotify_link)
+        print(f"Extracted Spotify playlist ID: {spotify_playlist_id}")
+    
     # Clean playlist name for display
     clean_name = playlist_name.split('Wedding Cocktail Hour')[0].strip()
 
@@ -314,7 +363,10 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
     - Use proper HTML tags: <h2> for section headers, <h3> for subtitles, <p> for paragraphs
     - For song links, format as: <p><a href="YOUTUBE_LINK" target="_blank">SONG NAME – ARTIST NAME</a></p>
     - Add proper spacing between sections using <div> tags or line breaks
-    - Format the Spotify link as: <p><strong>Listen to the full playlist: </strong><a href="SPOTIFY_LINK" target="_blank">Spotify Playlist</a></p>
+    - If Spotify link exists, format as: 
+      * First add text link: <p><strong>Listen to the full playlist: </strong><a href="SPOTIFY_LINK" target="_blank">Spotify Playlist</a></p>
+      * Then add embedded player: <iframe src="https://open.spotify.com/embed/playlist/PLAYLIST_ID" width="100%" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+        (where PLAYLIST_ID is extracted from the Spotify link - it's the part after "playlist/" in the URL)
     - Add a class to important elements: class="highlight-section" for key section headers
     - Make sure all HTML is properly structured and WordPress-compatible
 
@@ -390,6 +442,14 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None):
         
         # Remove any surrounding quotes but preserve HTML tags
         content = content.strip('"\'')
+        
+        # Replace PLAYLIST_ID with actual Spotify playlist ID if available
+        if spotify_playlist_id:
+            # Replace the PLAYLIST_ID placeholder with the actual ID in the iframe
+            iframe_pattern = r'src="https://open\.spotify\.com/embed/playlist/PLAYLIST_ID"'
+            iframe_replacement = f'src="https://open.spotify.com/embed/playlist/{spotify_playlist_id}"'
+            content = re.sub(iframe_pattern, iframe_replacement, content)
+            print(f"Added Spotify embed with playlist ID: {spotify_playlist_id}")
         
         # Debug output of content structure
         print(f"Content first 100 chars: {content[:100]}")
