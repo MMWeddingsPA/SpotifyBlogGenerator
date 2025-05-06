@@ -465,11 +465,30 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
             print("OpenAI API Key does not exist")
             raise Exception("OpenAI API key not found in environment variables. Please check the OPENAI_API_KEY secret.")
             
-        # Using the standard OpenAI GPT-4o model for better reliability
-        # gpt-4o is the newest OpenAI model released after knowledge cutoff
-        # do not change this unless explicitly requested by the user
+        # Get model and temperature from style_options or use defaults
+        model = style_options.get('model', 'gpt-4o')
+        temperature = style_options.get('temperature', 0.7)
+        
+        # Safety check - ensure we're using a valid model
+        valid_models = ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+        if model not in valid_models:
+            print(f"Warning: Invalid model '{model}' selected. Falling back to gpt-4o.")
+            model = "gpt-4o"
+        
+        # Safety check - ensure temperature is within valid range
+        try:
+            temperature = float(temperature)
+            if temperature < 0.0 or temperature > 1.0:
+                print(f"Warning: Invalid temperature {temperature}. Using default 0.7.")
+                temperature = 0.7
+        except:
+            temperature = 0.7
+            
+        print(f"Using OpenAI model: {model} with temperature: {temperature}")
+            
+        # Make the API call with the selected model and temperature
         response = client.chat.completions.create(
-            model="gpt-4o",  # Using the latest OpenAI model
+            model=model,  # Using the selected model
             messages=[
                 {
                     "role": "system",
@@ -496,7 +515,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2500,
-            temperature=0.7
+            temperature=temperature
         )
         
         # Return the generated content

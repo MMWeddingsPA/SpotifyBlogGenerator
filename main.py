@@ -733,6 +733,39 @@ def main():
                         
                         advanced_expander = st.expander("Show Advanced Options", expanded=False)
                         with advanced_expander:
+                            # Model selection with descriptions
+                            st.markdown("##### OpenAI Model Selection")
+                            st.info("""
+                            **Model Options:**
+                            - **GPT-4o**: Latest model (May 2024) with best quality but higher API costs
+                            - **GPT-4-turbo**: Very high quality with slightly lower costs
+                            - **GPT-3.5-turbo**: Faster with lowest costs, good for testing
+                            """)
+                            model_options = [
+                                "gpt-4o", 
+                                "gpt-4-turbo", 
+                                "gpt-3.5-turbo"
+                            ]
+                            model = st.selectbox(
+                                "Select Model",
+                                options=model_options,
+                                index=0,
+                                help="Select which OpenAI model to use for blog generation. GPT-4o is the newest and most capable model."
+                            )
+                            blog_style_options['model'] = model
+                            
+                            # Temperature control for AI creativity
+                            temperature = st.slider(
+                                "Temperature", 
+                                min_value=0.0, 
+                                max_value=1.0, 
+                                value=0.7, 
+                                step=0.1,
+                                help="Controls randomness in generation. Lower values are more focused and deterministic, higher values are more creative."
+                            )
+                            blog_style_options['temperature'] = temperature
+                            
+                            # Custom guidance fields
                             custom_guidance = st.text_area(
                                 "Custom Writing Guidance",
                                 value="",
