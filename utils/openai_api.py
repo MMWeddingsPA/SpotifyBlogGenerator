@@ -466,14 +466,14 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
             raise Exception("OpenAI API key not found in environment variables. Please check the OPENAI_API_KEY secret.")
             
         # Get model and temperature from style_options or use defaults
-        model = style_options.get('model', 'gpt-4o')
+        model = style_options.get('model', 'gpt-4.1')
         temperature = style_options.get('temperature', 0.7)
         
         # Safety check - ensure we're using a valid model
-        valid_models = ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+        valid_models = ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]
         if model not in valid_models:
-            print(f"Warning: Invalid model '{model}' selected. Falling back to gpt-4o.")
-            model = "gpt-4o"
+            print(f"Warning: Invalid model '{model}' selected. Falling back to gpt-4.1.")
+            model = "gpt-4.1"
         
         # Safety check - ensure temperature is within valid range
         try:

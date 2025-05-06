@@ -632,7 +632,40 @@ def main():
                 with st.expander("Blog Customization Options", expanded=False):
                     st.write("Customize your blog post style:")
                     
-                    # Custom style mode toggle
+                    # Model selection with descriptions - available in both modes
+                    st.markdown("### OpenAI Model Selection")
+                    st.info("""
+                    **Model Options:**
+                    - **GPT-4.1**: Most capable model with highest quality output
+                    - **GPT-4.1-mini**: Good balance of quality and cost
+                    - **GPT-4.1-nano**: Fastest with lowest costs, good for testing
+                    """)
+                    model_options = [
+                        "gpt-4.1", 
+                        "gpt-4.1-mini", 
+                        "gpt-4.1-nano"
+                    ]
+                    model = st.selectbox(
+                        "Select Model",
+                        options=model_options,
+                        index=0,
+                        help="Select which OpenAI model to use for blog generation."
+                    )
+                    blog_style_options['model'] = model
+                    
+                    # Temperature control for AI creativity
+                    temperature = st.slider(
+                        "Temperature", 
+                        min_value=0.0, 
+                        max_value=1.0, 
+                        value=0.7, 
+                        step=0.1,
+                        help="Controls randomness in generation. Lower values are more focused and deterministic, higher values are more creative."
+                    )
+                    blog_style_options['temperature'] = temperature
+                    
+                    # Style customization mode toggle
+                    st.markdown("### Style Customization")
                     custom_mode = st.radio(
                         "Customization Mode",
                         options=["Use Presets", "Free-form Input"],
@@ -727,71 +760,40 @@ def main():
                             help="Example: questions, movie references, song lyrics, etc."
                         )
                         blog_style_options['title_style'] = title_style
-                        
-                        # Additional custom fields for more personalization
-                        st.markdown("#### Additional Custom Style Elements (Optional):")
-                        
-                        advanced_expander = st.expander("Show Advanced Options", expanded=False)
-                        with advanced_expander:
-                            # Model selection with descriptions
-                            st.markdown("##### OpenAI Model Selection")
-                            st.info("""
-                            **Model Options:**
-                            - **GPT-4o**: Latest model (May 2024) with best quality but higher API costs
-                            - **GPT-4-turbo**: Very high quality with slightly lower costs
-                            - **GPT-3.5-turbo**: Faster with lowest costs, good for testing
-                            """)
-                            model_options = [
-                                "gpt-4o", 
-                                "gpt-4-turbo", 
-                                "gpt-3.5-turbo"
-                            ]
-                            model = st.selectbox(
-                                "Select Model",
-                                options=model_options,
-                                index=0,
-                                help="Select which OpenAI model to use for blog generation. GPT-4o is the newest and most capable model."
-                            )
-                            blog_style_options['model'] = model
-                            
-                            # Temperature control for AI creativity
-                            temperature = st.slider(
-                                "Temperature", 
-                                min_value=0.0, 
-                                max_value=1.0, 
-                                value=0.7, 
-                                step=0.1,
-                                help="Controls randomness in generation. Lower values are more focused and deterministic, higher values are more creative."
-                            )
-                            blog_style_options['temperature'] = temperature
-                            
-                            # Custom guidance fields
-                            custom_guidance = st.text_area(
-                                "Custom Writing Guidance",
-                                value="",
-                                height=100,
-                                help="Additional instructions for how the blog should be written (e.g., mention specific themes, include quotes, focus on particular aspects of songs)"
-                            )
-                            if custom_guidance.strip():
-                                blog_style_options['custom_guidance'] = custom_guidance
-                            
-                            custom_intro = st.text_area(
-                                "Custom Introduction Theme",
-                                value="",
-                                height=75,
-                                help="Specific themes or ideas to include in the introduction"
-                            )
-                            if custom_intro.strip():
-                                blog_style_options['custom_intro'] = custom_intro
-                            
-                            custom_conclusion = st.text_area(
-                                "Custom Conclusion Theme",
-                                value="",
-                                height=75,
-                                help="Specific themes or ideas to include in the conclusion"
-                            )
-                            if custom_conclusion.strip():
-                                blog_style_options['custom_conclusion'] = custom_conclusion
+                    
+                    # Additional custom fields for more personalization - available in both modes
+                    st.markdown("### Additional Content Guidance (Optional)")
+                    
+                    # Custom guidance fields
+                    custom_guidance = st.text_area(
+                        "Custom Writing Guidance",
+                        value="",
+                        height=100,
+                        help="Additional instructions for how the blog should be written (e.g., mention specific themes, include quotes, focus on particular aspects of songs)"
+                    )
+                    if custom_guidance.strip():
+                        blog_style_options['custom_guidance'] = custom_guidance
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        custom_intro = st.text_area(
+                            "Custom Introduction Theme",
+                            value="",
+                            height=75,
+                            help="Specific themes or ideas to include in the introduction"
+                        )
+                        if custom_intro.strip():
+                            blog_style_options['custom_intro'] = custom_intro
+                    
+                    with col2:
+                        custom_conclusion = st.text_area(
+                            "Custom Conclusion Theme",
+                            value="",
+                            height=75,
+                            help="Specific themes or ideas to include in the conclusion"
+                        )
+                        if custom_conclusion.strip():
+                            blog_style_options['custom_conclusion'] = custom_conclusion
                     
                     st.info("These options will be used to customize the AI-generated blog post.")
             
