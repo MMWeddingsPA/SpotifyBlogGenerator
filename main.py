@@ -632,49 +632,133 @@ def main():
                 with st.expander("Blog Customization Options", expanded=False):
                     st.write("Customize your blog post style:")
                     
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        tone = st.selectbox(
-                            "Blog Tone",
-                            options=["conversational and warm", "professional and elegant", 
-                                     "fun and upbeat", "romantic and emotional"],
-                            index=0
-                        )
-                        blog_style_options['tone'] = tone
-                        
-                        mood = st.selectbox(
-                            "Overall Mood",
-                            options=["romantic and celebratory", "elegant and sophisticated", 
-                                     "fun and energetic", "nostalgic and sentimental", 
-                                     "modern and trendy"],
-                            index=0
-                        )
-                        blog_style_options['mood'] = mood
-                    
-                    with col2:
-                        audience = st.selectbox(
-                            "Target Audience",
-                            options=["engaged couples", "modern couples", "traditional couples", 
-                                     "brides", "wedding planners"],
-                            index=0
-                        )
-                        blog_style_options['audience'] = audience
-                        
-                        section_count = st.select_slider(
-                            "Number of Sections",
-                            options=[3, 4, 5, 6, 7],
-                            value=4
-                        )
-                        blog_style_options['section_count'] = section_count
-                    
-                    title_style = st.selectbox(
-                        "Section Title Style",
-                        options=["descriptive and catchy", "short and elegant", 
-                                 "fun and playful", "romantic", "themed around moments"],
-                        index=0
+                    # Custom style mode toggle
+                    custom_mode = st.radio(
+                        "Customization Mode",
+                        options=["Use Presets", "Free-form Input"],
+                        horizontal=True
                     )
-                    blog_style_options['title_style'] = title_style
+                    
+                    if custom_mode == "Use Presets":
+                        # Original dropdown-based options
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            tone = st.selectbox(
+                                "Blog Tone",
+                                options=["conversational and warm", "professional and elegant", 
+                                         "fun and upbeat", "romantic and emotional"],
+                                index=0
+                            )
+                            blog_style_options['tone'] = tone
+                            
+                            mood = st.selectbox(
+                                "Overall Mood",
+                                options=["romantic and celebratory", "elegant and sophisticated", 
+                                         "fun and energetic", "nostalgic and sentimental", 
+                                         "modern and trendy"],
+                                index=0
+                            )
+                            blog_style_options['mood'] = mood
+                        
+                        with col2:
+                            audience = st.selectbox(
+                                "Target Audience",
+                                options=["engaged couples", "modern couples", "traditional couples", 
+                                         "brides", "wedding planners"],
+                                index=0
+                            )
+                            blog_style_options['audience'] = audience
+                            
+                            section_count = st.select_slider(
+                                "Number of Sections",
+                                options=[3, 4, 5, 6, 7],
+                                value=4
+                            )
+                            blog_style_options['section_count'] = section_count
+                        
+                        title_style = st.selectbox(
+                            "Section Title Style",
+                            options=["descriptive and catchy", "short and elegant", 
+                                     "fun and playful", "romantic", "themed around moments"],
+                            index=0
+                        )
+                        blog_style_options['title_style'] = title_style
+                    else:
+                        # Free-form text input based options
+                        st.markdown("#### Enter your own custom style preferences:")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            tone = st.text_input(
+                                "Blog Tone",
+                                value="conversational and warm",
+                                help="Example: playful and witty, sophisticated and elegant, etc."
+                            )
+                            blog_style_options['tone'] = tone
+                            
+                            mood = st.text_input(
+                                "Overall Mood",
+                                value="romantic and celebratory",
+                                help="Example: laid-back beachy vibe, stylish urban feel, etc."
+                            )
+                            blog_style_options['mood'] = mood
+                        
+                        with col2:
+                            audience = st.text_input(
+                                "Target Audience",
+                                value="engaged couples",
+                                help="Example: music-loving couples, vintage enthusiasts, etc."
+                            )
+                            blog_style_options['audience'] = audience
+                            
+                            section_count = st.number_input(
+                                "Number of Sections",
+                                min_value=3,
+                                max_value=8,
+                                value=4
+                            )
+                            blog_style_options['section_count'] = section_count
+                        
+                        title_style = st.text_input(
+                            "Section Title Style",
+                            value="descriptive and catchy",
+                            help="Example: questions, movie references, song lyrics, etc."
+                        )
+                        blog_style_options['title_style'] = title_style
+                        
+                        # Additional custom fields for more personalization
+                        st.markdown("#### Additional Custom Style Elements (Optional):")
+                        
+                        advanced_expander = st.expander("Show Advanced Options", expanded=False)
+                        with advanced_expander:
+                            custom_guidance = st.text_area(
+                                "Custom Writing Guidance",
+                                value="",
+                                height=100,
+                                help="Additional instructions for how the blog should be written (e.g., mention specific themes, include quotes, focus on particular aspects of songs)"
+                            )
+                            if custom_guidance.strip():
+                                blog_style_options['custom_guidance'] = custom_guidance
+                            
+                            custom_intro = st.text_area(
+                                "Custom Introduction Theme",
+                                value="",
+                                height=75,
+                                help="Specific themes or ideas to include in the introduction"
+                            )
+                            if custom_intro.strip():
+                                blog_style_options['custom_intro'] = custom_intro
+                            
+                            custom_conclusion = st.text_area(
+                                "Custom Conclusion Theme",
+                                value="",
+                                height=75,
+                                help="Specific themes or ideas to include in the conclusion"
+                            )
+                            if custom_conclusion.strip():
+                                blog_style_options['custom_conclusion'] = custom_conclusion
                     
                     st.info("These options will be used to customize the AI-generated blog post.")
             

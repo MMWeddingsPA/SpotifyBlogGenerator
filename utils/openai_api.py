@@ -396,7 +396,21 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
     audience = style_options.get('audience', 'engaged couples')
     title_style = style_options.get('title_style', 'descriptive and catchy')
     
+    # Advanced custom options
+    custom_guidance = style_options.get('custom_guidance', '')
+    custom_intro = style_options.get('custom_intro', '')
+    custom_conclusion = style_options.get('custom_conclusion', '')
+    
     sections_text = "\n\n".join(f"Section {i+1} - Songs for the {['Opening', 'Middle', 'Peak', 'Wind-down', 'Finale', 'Transition', 'Closing'][i % 7]} Phase:\n{songs}" for i, songs in enumerate(sections))
+
+    # Build additional guidance section if custom fields are provided
+    additional_guidance = ""
+    if custom_guidance:
+        additional_guidance += f"\n\nCustom Writing Guidance:\n{custom_guidance}"
+    if custom_intro:
+        additional_guidance += f"\n\nCustom Introduction Theme:\n{custom_intro}"
+    if custom_conclusion:
+        additional_guidance += f"\n\nCustom Conclusion Theme:\n{custom_conclusion}"
 
     prompt = f"""
     Create a wedding DJ blog post for the playlist "{clean_name}" following this exact structure and HTML formatting:
@@ -431,7 +445,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
     - Blend practical details with storytelling
     - Keep each section concise but meaningful (3-4 paragraphs max per section)
     - Use compelling descriptive language that evokes mood and setting
-    - Emphasize how these songs enhance specific wedding moments
+    - Emphasize how these songs enhance specific wedding moments{additional_guidance}
 
     4. Available Songs (already properly formatted with YouTube links, use exactly as provided):
     {sections_text}
