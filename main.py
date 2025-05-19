@@ -15,7 +15,8 @@ from utils.secrets_manager import get_secret
 st.set_page_config(
     page_title="Moments & Memories Blog Generator",
     page_icon="✨",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # Custom CSS to match Moments & Memories branding
