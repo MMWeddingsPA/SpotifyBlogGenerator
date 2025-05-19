@@ -3,6 +3,8 @@ import re
 from openai import OpenAI
 import trafilatura
 import logging
+import streamlit as st
+from utils.secrets_manager import get_secret
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -174,7 +176,7 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None):
                         logger.warning(f"Could not fetch YouTube link for '{query}': {str(e)}")
     
     # Initialize OpenAI client
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    client = OpenAI(api_key=get_secret("OPENAI_API_KEY"))
     
     # Prepare extracted song information in a readable format
     songs_list = "\n".join([f"{s['Song']} – {s['Artist']} | YouTube Link: {s['YouTube_Link'] or 'None'}" for s in songs])
@@ -316,7 +318,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
         - title_style: Style for section titles (e.g., 'descriptive', 'short', 'playful', 'elegant')
     """
     # Use standard OpenAI client with GPT-4o
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    client = OpenAI(api_key=get_secret("OPENAI_API_KEY"))
     
     # Initialize default style options if not provided
     if style_options is None:
