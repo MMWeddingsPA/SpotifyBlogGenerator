@@ -50,7 +50,15 @@ WORDPRESS_PASSWORD = "your_wordpress_password"
 YOUTUBE_API_KEY = "your_youtube_api_key"
 ```
 
-4. **Deploy**: Configure your app to use `main.py` as the entrypoint, and deploy.
+4. **Deploy**: 
+   - Configure your app to use `main.py` as the entrypoint
+   - Important: Do not include custom port or address settings in your `.streamlit/config.toml` file when deploying to Streamlit Cloud, as it can cause deployment errors
+   - Click "Deploy" and Streamlit Cloud will handle the rest of the process
+
+5. **Troubleshooting Deployment**:
+   - If you get health check errors during deployment, make sure there's no `.streamlit/config.toml` file with custom server settings
+   - Verify that all your dependencies are properly listed in requirements.txt or pyproject.toml
+   - Check the deployment logs for specific error messages
 
 ## Folder Structure
 
