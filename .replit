@@ -18,26 +18,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Fixed App"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Playlist Blog Generator"
-
-[[workflows.workflow]]
-name = "Fixed App"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "streamlit run final_fixed_app.py"
-waitForPort = 5000
 
 [[workflows.workflow]]
 name = "Playlist Blog Generator"
