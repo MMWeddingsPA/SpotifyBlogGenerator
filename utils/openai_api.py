@@ -239,7 +239,7 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None):
             logger.info(f"OpenAI API Key exists: True (length: {len(client.api_key)})")
         else:
             logger.error("OpenAI API Key does not exist")
-            raise Exception("OpenAI API key not found in environment variables. Please check the OPENAI_API_KEY secret.")
+            raise Exception("OpenAI API key not found. Please check the OPENAI_API_KEY secret.")
             
         # Using the standard OpenAI GPT-4o model
         # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
@@ -465,7 +465,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
             print(f"OpenAI API Key exists: True (length: {len(client.api_key)})")
         else:
             print("OpenAI API Key does not exist")
-            raise Exception("OpenAI API key not found in environment variables. Please check the OPENAI_API_KEY secret.")
+            raise Exception("OpenAI API key not found. Please check the OPENAI_API_KEY secret.")
             
         # Get model and temperature from style_options or use defaults
         model = style_options.get('model', 'gpt-4.1')
