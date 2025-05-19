@@ -117,12 +117,13 @@ def extract_spotify_playlist_id(spotify_url):
         logger.error(f"Error extracting Spotify playlist ID: {str(e)}")
         return None
 
-def revamp_existing_blog(post_content, post_title, youtube_api=None):
+def revamp_existing_blog(post_content, post_title, youtube_api=None, style_options=None):
     """
     Revamp an existing blog post to match current format and style
     :param post_content: HTML content from WordPress post
     :param post_title: Title of the blog post
     :param youtube_api: Optional YouTube API client to fetch missing links
+    :param style_options: Dictionary of style options to customize the blog post (tone, mood, audience, etc.)
     :return: Revamped blog post content in HTML format
     """
     # Extract songs and Spotify link from the existing content
@@ -181,6 +182,15 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None):
     # Prepare extracted song information in a readable format
     songs_list = "\n".join([f"{s['Song']} – {s['Artist']} | YouTube Link: {s['YouTube_Link'] or 'None'}" for s in songs])
     
+    # Initialize default style options if not provided
+    if style_options is None:
+        style_options = {}
+    
+    # Extract style parameters with defaults
+    tone = style_options.get('tone', 'Professional')
+    mood = style_options.get('mood', 'Elegant')
+    audience = style_options.get('audience', 'Modern Couples')
+    
     prompt = f"""
     Revamp this existing wedding blog post to match our new format and style.
     
@@ -193,6 +203,11 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None):
     {songs_list}
     
     Spotify Link: {spotify_link or "Not found in original content"}
+    
+    Style Guidelines:
+    - Tone: {tone}
+    - Mood: {mood}
+    - Target Audience: {audience}
     
     Please rewrite this blog post following these guidelines:
     
