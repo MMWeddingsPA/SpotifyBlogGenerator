@@ -637,11 +637,13 @@ def main():
                     st.info("""
                     **Model Options:**
                     - **GPT-4.1**: Most capable model with highest quality output
+                    - **GPT-4o-mini**: Very good performance with lower costs
                     - **GPT-4.1-mini**: Good balance of quality and cost
                     - **GPT-4.1-nano**: Fastest with lowest costs, good for testing
                     """)
                     model_options = [
                         "gpt-4.1", 
+                        "gpt-4o-mini",
                         "gpt-4.1-mini", 
                         "gpt-4.1-nano"
                     ]

@@ -470,7 +470,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
         temperature = style_options.get('temperature', 0.7)
         
         # Safety check - ensure we're using a valid model
-        valid_models = ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]
+        valid_models = ["gpt-4.1", "gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano"]
         if model not in valid_models:
             print(f"Warning: Invalid model '{model}' selected. Falling back to gpt-4.1.")
             model = "gpt-4.1"
