@@ -1388,14 +1388,17 @@ def main():
                 if selected_post_title:
                     selected_post_id = post_options[selected_post_title]
                     
-                    # Streamlined post loading and revamp process
-                    with st.spinner("Fetching post content..."):
-                        try:
-                            post = wordpress_api.get_post(selected_post_id)
-                            if post:
-                                # Store the post in session state
-                                st.session_state.selected_post = post
-                                
+                    # Simplified revamp process - separate loading from revamping
+                    post_container = st.container()
+                    
+                    # Fetch the post content when selected
+                    try:
+                        post = wordpress_api.get_post(selected_post_id)
+                        if post:
+                            # Store the post in session state
+                            st.session_state.selected_post = post
+                            
+                            with post_container:
                                 # Show post preview
                                 st.write("### Original Post Content")
                                 with st.expander("View Original HTML Content", expanded=False):
@@ -1405,116 +1408,115 @@ def main():
                                 st.write("### Original Post Preview")
                                 st.markdown(post['content'], unsafe_allow_html=True)
                                 
-                                # Blog style customization options (similar to blog generation)
+                                # Blog style customization options
                                 st.write("### Revamp Style Options")
                                 
-                                # Create columns for style options
-                                style_col1, style_col2 = st.columns(2)
-                                
-                                with style_col1:
+                                col1, col2 = st.columns(2)
+                                with col1:
                                     tone = st.selectbox(
-                                        "Tone",
-                                        ["Conversational", "Professional", "Romantic", "Upbeat", "Custom"],
-                                        index=1
-                                    )
-                                    
-                                    if tone == "Custom":
-                                        custom_tone = st.text_input("Custom tone", 
-                                            placeholder="e.g., 'Inspirational with a touch of humor'")
-                                        tone = custom_tone if custom_tone else "Professional"
-                                
-                                with style_col2:
-                                    mood = st.selectbox(
-                                        "Mood",
-                                        ["Elegant", "Fun", "Emotional", "Energetic", "Custom"],
+                                        "Writing Tone",
+                                        ["Professional", "Conversational", "Romantic", "Upbeat"],
                                         index=0
                                     )
-                                    
-                                    if mood == "Custom":
-                                        custom_mood = st.text_input("Custom mood", 
-                                            placeholder="e.g., 'Intimate and heartfelt'")
-                                        mood = custom_mood if custom_mood else "Elegant"
+                                
+                                with col2:
+                                    mood = st.selectbox(
+                                        "Mood",
+                                        ["Elegant", "Fun", "Emotional", "Energetic"],
+                                        index=0
+                                    )
                                 
                                 audience = st.selectbox(
                                     "Target Audience",
-                                    ["Modern Couples", "Traditional Couples", "Brides", "Custom"],
+                                    ["Modern Couples", "Traditional Couples", "Brides"],
                                     index=0
                                 )
                                 
-                                if audience == "Custom":
-                                    custom_audience = st.text_input("Custom audience", 
-                                        placeholder="e.g., 'Music-loving couples'")
-                                    audience = custom_audience if custom_audience else "Modern Couples"
-                                
-                                # Create the style options dictionary
+                                # Create style options dictionary
                                 style_options = {
                                     "tone": tone,
                                     "mood": mood,
                                     "audience": audience
                                 }
                                 
-                                # Option to revamp
-                                if st.button("✨ Revamp This Post"):
+                                # Revamp button that does the actual processing
+                                if st.button("✨ Revamp This Post", key="revamp_post_button"):
                                     with st.spinner("Revamping post content... This may take a minute..."):
                                         try:
-                                            # Revamp the content with style options
+                                            # Clear previous revamped content if it exists
+                                            if "revamped_content" in st.session_state:
+                                                del st.session_state.revamped_content
+                                            
+                                            # Perform the revamp
                                             revamped_content = revamp_existing_blog(
                                                 post_content=post['content'],
-                                                post_title=post['title'], 
-                                                youtube_api=youtube_api,  # Pass the YouTube API client for link fetching
-                                                style_options=style_options  # Pass style options to match blog generation
+                                                post_title=post['title'],
+                                                youtube_api=youtube_api,
+                                                style_options=style_options
                                             )
                                             
-                                            # Store the revamped content
+                                            # Store in session state
                                             st.session_state.revamped_content = revamped_content
+                                            st.session_state.revamped_post = post
                                             
-                                            # Show revamped preview
-                                            st.write("### Revamped Post Preview")
-                                            st.markdown(revamped_content, unsafe_allow_html=True)
-                                            
-                                            # Edit options
-                                            st.write("### Edit Revamped Content")
-                                            edited_content = st.text_area(
-                                                "HTML Content (you can edit this)",
-                                                value=revamped_content,
-                                                height=400
-                                            )
-                                            
-                                            # Update post options
-                                            col1, col2 = st.columns(2)
-                                            with col1:
-                                                if st.button("📝 Create as New Draft", key="create_draft"):
-                                                    with st.spinner("Creating new draft post..."):
-                                                        try:
-                                                            # Create a new draft post
-                                                            title = f"Revamped: {post['title']}"
-                                                            result = wordpress_api.create_post(
-                                                                title=title,
-                                                                content=edited_content,
-                                                                status="draft",
-                                                                categories=post.get('categories', [])
-                                                            )
-                                                            
-                                                            if result.get('success'):
-                                                                st.success("✅ New draft post created successfully!")
-                                                                st.write(f"Edit URL: {result.get('edit_url')}")
-                                                            else:
-                                                                st.error(f"Error creating draft: {result.get('error')}")
-                                                        except Exception as e:
-                                                            st.error(f"Error creating draft: {str(e)}")
-                                            
-                                            with col2:
-                                                if st.button("💾 Save Locally", key="save_locally"):
-                                                    # Generate a filename based on the post title
-                                                    filename = f"revamped_{post['id']}.html"
-                                                    save_blog_post(f"revamped_{post['id']}", edited_content, f"Revamped: {post['title']}")
-                                                    st.success(f"✅ Revamped post saved locally as '{filename}'")
+                                            # Success message to trigger rerun
+                                            st.success("Post successfully revamped! Preview below.")
+                                            st.experimental_rerun()
+                                        
                                         except Exception as e:
-                                            st.error(f"Error revamping content: {str(e)}")
-                            else:
-                                st.error("Could not fetch post content.")
-                        except Exception as e:
-                            st.error(f"Error fetching post: {str(e)}")
+                                            st.error(f"Error revamping post: {str(e)}")
+                                            st.error("Please try again or select a different post.")
+                        else:
+                            st.error("Could not fetch post content.")
+                    except Exception as e:
+                        st.error(f"Error fetching post: {str(e)}")
+                    
+                    # Display revamped content if available (after revamp button was clicked)
+                    if "revamped_content" in st.session_state and "revamped_post" in st.session_state:
+                        st.write("### Revamped Post Preview")
+                        st.markdown(st.session_state.revamped_content, unsafe_allow_html=True)
+                        
+                        # Editing options
+                        st.write("### Edit Revamped Content")
+                        edited_content = st.text_area(
+                            "HTML Content (you can edit this)",
+                            value=st.session_state.revamped_content,
+                            height=400
+                        )
+                        
+                        # Action buttons
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("📝 Create as New Draft", key="create_draft"):
+                                with st.spinner("Creating new draft post..."):
+                                    try:
+                                        # Get post from session state
+                                        post = st.session_state.revamped_post
+                                        
+                                        # Create new draft
+                                        title = f"Revamped: {post['title']}"
+                                        result = wordpress_api.create_post(
+                                            title=title,
+                                            content=edited_content,
+                                            status="draft",
+                                            categories=post.get('categories', [])
+                                        )
+                                        
+                                        if result.get('success'):
+                                            st.success("✅ New draft post created successfully!")
+                                            st.write(f"Edit URL: {result.get('edit_url')}")
+                                        else:
+                                            st.error(f"Error creating draft: {result.get('error')}")
+                                    except Exception as e:
+                                        st.error(f"Error creating draft: {str(e)}")
+                        
+                        with col2:
+                            if st.button("💾 Save Locally", key="save_locally"):
+                                post = st.session_state.revamped_post
+                                filename = f"revamped_{post['id']}.html"
+                                save_blog_post(f"revamped_{post['id']}", edited_content, f"Revamped: {post['title']}")
+                                st.success(f"✅ Revamped post saved locally as '{filename}'")
+                     
             else:
                 st.info("Search for posts to begin revamping content.")
 
