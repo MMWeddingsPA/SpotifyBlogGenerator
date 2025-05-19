@@ -1561,32 +1561,31 @@ def main():
                                     title_style = "Descriptive"
                                     
                                     # Override defaults with form values if they exist
-                                    if 'section_count_selection' in locals():
-                                        if section_count_selection == "Default (3-4)":
-                                            section_count = 4
-                                        elif section_count_selection == "Minimal (2-3)":
-                                            section_count = 3
-                                        elif section_count_selection == "Comprehensive (4-5)":
-                                            section_count = 5
-                                        elif section_count_selection == "Detailed (5-6)":
-                                            section_count = 6
+                                    if section_count_selection == "Default (3-4)":
+                                        section_count = 4
+                                    elif section_count_selection == "Minimal (2-3)":
+                                        section_count = 3
+                                    elif section_count_selection == "Comprehensive (4-5)":
+                                        section_count = 5
+                                    elif section_count_selection == "Detailed (5-6)":
+                                        section_count = 6
+                                
+                                    # Create comprehensive style options dictionary
+                                    style_options = {
+                                        "tone": tone,
+                                        "mood": mood,
+                                        "audience": audience,
+                                        "section_count": section_count,
+                                        "intro_theme": intro_theme,
+                                        "conclusion_theme": conclusion_theme,
+                                        "title_style": title_style,
+                                        "custom_guidance": custom_guidance,
+                                        "model": model,
+                                        "temperature": temperature
+                                    }
                                     
                                     with st.spinner("Revamping post content... This may take a minute..."):
                                         try:
-                                            # Create comprehensive style options dictionary
-                                            style_options = {
-                                                "tone": tone,
-                                                "mood": mood,
-                                                "audience": audience,
-                                                "section_count": section_count,
-                                                "intro_theme": intro_theme,
-                                                "conclusion_theme": conclusion_theme,
-                                                "title_style": title_style,
-                                                "custom_guidance": custom_guidance,
-                                                "model": model,
-                                                "temperature": temperature
-                                            }
-                                            
                                             # Perform the revamp
                                             revamped_content = revamp_existing_blog(
                                                 post_content=post['content'],
