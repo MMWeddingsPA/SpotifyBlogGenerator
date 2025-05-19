@@ -1410,31 +1410,140 @@ def main():
                                 st.write("### Original Post Preview")
                                 st.markdown(post['content'], unsafe_allow_html=True)
                                 
-                                # Blog style customization options
+                                # Blog style customization options - matching the original blog generator options
                                 st.write("### Revamp Style Options")
+                                
+                                # Model selection
+                                model = st.selectbox(
+                                    "AI Model",
+                                    ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+                                    index=0,
+                                    help="Select which OpenAI model to use for content generation"
+                                )
+                                
+                                temperature = st.slider(
+                                    "Creativity Level", 
+                                    min_value=0.0, 
+                                    max_value=1.0, 
+                                    value=0.7, 
+                                    step=0.1,
+                                    help="Higher values make output more creative, lower values make it more predictable"
+                                )
                                 
                                 # Initialize form for revamp options
                                 with st.form(key="revamp_form"):
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        tone = st.selectbox(
-                                            "Writing Tone",
-                                            ["Professional", "Conversational", "Romantic", "Upbeat"],
-                                            index=0
-                                        )
+                                    # Basic style options with both dropdowns and custom inputs
+                                    st.subheader("Basic Style")
                                     
-                                    with col2:
-                                        mood = st.selectbox(
-                                            "Mood",
-                                            ["Elegant", "Fun", "Emotional", "Energetic"],
-                                            index=0
-                                        )
-                                    
-                                    audience = st.selectbox(
-                                        "Target Audience",
-                                        ["Modern Couples", "Traditional Couples", "Brides"],
+                                    # Tone options with custom option
+                                    tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
+                                    tone = st.selectbox(
+                                        "Writing Tone",
+                                        tone_options,
                                         index=0
                                     )
+                                    
+                                    if tone == "Custom":
+                                        custom_tone = st.text_input("Custom tone", 
+                                            placeholder="e.g., 'Inspirational with a touch of humor'")
+                                        tone = custom_tone if custom_tone else "Professional"
+                                    
+                                    # Section count with dropdown and custom
+                                    section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
+                                    section_count_selection = st.selectbox(
+                                        "Content Sections",
+                                        section_count_options,
+                                        index=0
+                                    )
+                                    
+                                    if section_count_selection == "Custom":
+                                        section_count = st.number_input("Number of content sections", min_value=2, max_value=6, value=4)
+                                    else:
+                                        # Parse the selection to get the actual number
+                                        if section_count_selection == "Default (3-4)":
+                                            section_count = 4
+                                        elif section_count_selection == "Minimal (2-3)":
+                                            section_count = 3
+                                        elif section_count_selection == "Comprehensive (4-5)":
+                                            section_count = 5
+                                        elif section_count_selection == "Detailed (5-6)":
+                                            section_count = 6
+                                    
+                                    col1, col2 = st.columns(2)
+                                    
+                                    with col1:
+                                        # Mood options with custom
+                                        mood_options = ["Elegant", "Fun", "Emotional", "Energetic", "Romantic", "Sophisticated", "Custom"]
+                                        mood = st.selectbox(
+                                            "Overall Mood",
+                                            mood_options,
+                                            index=0
+                                        )
+                                        
+                                        if mood == "Custom":
+                                            custom_mood = st.text_input("Custom mood", 
+                                                placeholder="e.g., 'Intimate and heartfelt'")
+                                            mood = custom_mood if custom_mood else "Elegant"
+                                        
+                                        # Introduction theme
+                                        intro_theme_options = ["Standard Welcome", "Personal Story", "Setting the Scene", "Custom"]
+                                        intro_theme = st.selectbox(
+                                            "Introduction Theme",
+                                            intro_theme_options,
+                                            index=0
+                                        )
+                                        
+                                        if intro_theme == "Custom":
+                                            custom_intro = st.text_input("Custom introduction theme", 
+                                                placeholder="e.g., 'Begin with a quote about music and love'")
+                                            intro_theme = custom_intro if custom_intro else "Standard Welcome"
+                                    
+                                    with col2:
+                                        # Audience options with custom
+                                        audience_options = ["Modern Couples", "Traditional Couples", "Brides", "Grooms", "Wedding Planners", "Custom"]
+                                        audience = st.selectbox(
+                                            "Target Audience",
+                                            audience_options,
+                                            index=0
+                                        )
+                                        
+                                        if audience == "Custom":
+                                            custom_audience = st.text_input("Custom audience", 
+                                                placeholder="e.g., 'Music-loving couples'")
+                                            audience = custom_audience if custom_audience else "Modern Couples"
+                                        
+                                        # Conclusion theme
+                                        conclusion_options = ["Standard Closing", "Call to Action", "Personal Touch", "Custom"]
+                                        conclusion_theme = st.selectbox(
+                                            "Conclusion Theme",
+                                            conclusion_options,
+                                            index=0
+                                        )
+                                        
+                                        if conclusion_theme == "Custom":
+                                            custom_conclusion = st.text_input("Custom conclusion theme", 
+                                                placeholder="e.g., 'End with planning tips'")
+                                            conclusion_theme = custom_conclusion if custom_conclusion else "Standard Closing"
+                                    
+                                    # Advanced options
+                                    with st.expander("Advanced Customization"):
+                                        title_style_options = ["Descriptive", "Short", "Playful", "Elegant", "Question", "Custom"]
+                                        title_style = st.selectbox(
+                                            "Section Title Style",
+                                            title_style_options,
+                                            index=0
+                                        )
+                                        
+                                        if title_style == "Custom":
+                                            custom_title = st.text_input("Custom title style", 
+                                                placeholder="e.g., 'Alliterative and punchy'")
+                                            title_style = custom_title if custom_title else "Descriptive"
+                                        
+                                        custom_guidance = st.text_area(
+                                            "Custom Writing Guidance", 
+                                            placeholder="Add any specific instructions or guidance for the blog post generation...",
+                                            height=100
+                                        )
                                     
                                     # Submit button for the form
                                     revamp_button = st.form_submit_button("✨ Revamp This Post")
@@ -1443,13 +1552,18 @@ def main():
                                 if revamp_button:
                                     with st.spinner("Revamping post content... This may take a minute..."):
                                         try:
-                                            # Create style options dictionary
+                                            # Create comprehensive style options dictionary
                                             style_options = {
                                                 "tone": tone,
                                                 "mood": mood,
                                                 "audience": audience,
-                                                "model": "gpt-4o", # Use latest model
-                                                "temperature": 0.7
+                                                "section_count": section_count,
+                                                "intro_theme": intro_theme,
+                                                "conclusion_theme": conclusion_theme,
+                                                "title_style": title_style,
+                                                "custom_guidance": custom_guidance if 'custom_guidance' in locals() else "",
+                                                "model": model,
+                                                "temperature": temperature
                                             }
                                             
                                             # Perform the revamp
@@ -1460,21 +1574,32 @@ def main():
                                                 style_options=style_options
                                             )
                                             
-                                            # Show revamped preview
-                                            st.write("### Revamped Post Preview")
-                                            st.markdown(revamped_content, unsafe_allow_html=True)
+                                            # Store in session state to persist between reruns
+                                            st.session_state.revamped_content = revamped_content
+                                            st.session_state.revamp_post_id = post['id']
+                                            st.session_state.revamp_post_title = post['title']
+                                            st.session_state.revamp_post_categories = post.get('categories', [])
                                             
-                                            # Editing options
-                                            st.write("### Edit Revamped Content")
-                                            edited_content = st.text_area(
-                                                "HTML Content (you can edit this)",
-                                                value=revamped_content,
-                                                height=400
-                                            )
-                                            
-                                            # Action buttons
-                                            action_col1, action_col2 = st.columns(2)
-                                            with action_col1:
+                                            # Success message
+                                            st.success("✅ Post successfully revamped! See the preview below.")
+                                
+                                # Display saved revamped content (if available) outside of the form
+                                if 'revamped_content' in st.session_state and selected_post_id == st.session_state.get('revamp_post_id'):
+                                    # Show revamped preview
+                                    st.write("### Revamped Post Preview")
+                                    st.markdown(st.session_state.revamped_content, unsafe_allow_html=True)
+                                    
+                                    # Editing options
+                                    st.write("### Edit Revamped Content")
+                                    edited_content = st.text_area(
+                                        "HTML Content (you can edit this)",
+                                        value=st.session_state.revamped_content,
+                                        height=400
+                                    )
+                                    
+                                    # Action buttons
+                                    action_col1, action_col2 = st.columns(2)
+                                    with action_col1:
                                                 if st.button("📝 Create as New Draft", key="create_draft"):
                                                     with st.spinner("Creating new draft post..."):
                                                         try:
