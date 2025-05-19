@@ -9,6 +9,7 @@ from utils.spotify_api import SpotifyAPI
 from utils.openai_api import generate_blog_post, revamp_existing_blog
 from utils.fixed_wordpress_api import WordPressAPI
 from utils.corrected_csv_handler import load_csv, save_csv, create_empty_playlist_df
+from utils.secrets_manager import get_secret
 
 # Page configuration
 st.set_page_config(
@@ -364,7 +365,7 @@ def main():
     
     # YouTube API initialization
     try:
-        youtube_key = os.getenv("YOUTUBE_API_KEY")
+        youtube_key = get_secret("YOUTUBE_API_KEY")
         if youtube_key:
             youtube_api = YouTubeAPI(youtube_key)
             youtube_status, youtube_message = youtube_api.verify_connection()
@@ -383,8 +384,8 @@ def main():
     # Spotify API initialization
     try:
         spotify_api = SpotifyAPI(
-            os.getenv("SPOTIFY_CLIENT_ID"),
-            os.getenv("SPOTIFY_CLIENT_SECRET")
+            get_secret("SPOTIFY_CLIENT_ID"),
+            get_secret("SPOTIFY_CLIENT_SECRET")
         )
     except Exception as e:
         st.sidebar.error(f"⚠️ Spotify API error: {str(e)}")
@@ -395,14 +396,14 @@ def main():
         wordpress_api = None  # Initialize to None first
         # Check if WordPress credentials are available
         if all([
-            os.getenv("WORDPRESS_API_URL"),
-            os.getenv("WORDPRESS_USERNAME"),
-            os.getenv("WORDPRESS_PASSWORD")
+            get_secret("WORDPRESS_API_URL"),
+            get_secret("WORDPRESS_USERNAME"),
+            get_secret("WORDPRESS_PASSWORD")
         ]):
-            # Get the credentials from environment variables
-            api_url = os.getenv("WORDPRESS_API_URL")
-            username = os.getenv("WORDPRESS_USERNAME")
-            password = os.getenv("WORDPRESS_PASSWORD")
+            # Get the credentials from secrets
+            api_url = get_secret("WORDPRESS_API_URL")
+            username = get_secret("WORDPRESS_USERNAME")
+            password = get_secret("WORDPRESS_PASSWORD")
             
             # Fix for common WordPress URL issues
             if api_url and (api_url.endswith('/wp-json') or api_url.endswith('/wp-json/')):
@@ -442,9 +443,9 @@ def main():
                     st.info("Diagnosing WordPress connection issues...")
                     
                     # Show formatted API URL
-                    wp_url = os.environ.get("WORDPRESS_API_URL", "").strip()
-                    wp_username = os.environ.get("WORDPRESS_USERNAME", "").strip()
-                    wp_password = os.environ.get("WORDPRESS_PASSWORD", "").strip()
+                    wp_url = get_secret("WORDPRESS_API_URL", "").strip() if get_secret("WORDPRESS_API_URL") else ""
+                    wp_username = get_secret("WORDPRESS_USERNAME", "").strip() if get_secret("WORDPRESS_USERNAME") else ""
+                    wp_password = get_secret("WORDPRESS_PASSWORD", "").strip() if get_secret("WORDPRESS_PASSWORD") else ""
                     
                     st.markdown("### WordPress Connection Info")
                     st.info(f"API URL: `{wp_url}`")
