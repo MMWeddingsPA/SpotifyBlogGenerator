@@ -55,10 +55,19 @@ YOUTUBE_API_KEY = "your_youtube_api_key"
    - Important: Do not include custom port or address settings in your `.streamlit/config.toml` file when deploying to Streamlit Cloud, as it can cause deployment errors
    - Click "Deploy" and Streamlit Cloud will handle the rest of the process
 
-5. **Troubleshooting Deployment**:
-   - If you get health check errors during deployment, make sure there's no `.streamlit/config.toml` file with custom server settings
+5. **Theme Configuration**: 
+   - The app has been configured to use light mode by default
+   - If your deployed app appears in dark mode, you can add theme settings to your Streamlit Cloud secrets by adding:
+     ```
+     [theme]
+     base = "light"
+     ```
+
+6. **Troubleshooting Deployment**:
+   - If you get health check errors during deployment, make sure to remove any custom port settings from the `.streamlit/config.toml` file
    - Verify that all your dependencies are properly listed in requirements.txt or pyproject.toml
    - Check the deployment logs for specific error messages
+   - For theme issues, try adding the theme settings directly in the Streamlit Cloud secrets configuration
 
 ## Folder Structure
 
