@@ -19,9 +19,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS to match Moments & Memories branding
+# Force light mode
 st.markdown("""
 <style>
+    /* Force light mode styles */
+    .stApp {
+        background-color: white !important;
+        color: #1A2A44 !important;
+    }
+    .sidebar .sidebar-content {
+        background-color: #F0F2F6 !important;
+    }
+    
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
 
     /* Main text and headers */
