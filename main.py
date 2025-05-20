@@ -73,6 +73,24 @@ if 'last_saved_csv' not in st.session_state:
 if 'auto_loaded' not in st.session_state:
     st.session_state.auto_loaded = False
     
+# WordPress revamp session state
+if 'selected_post' not in st.session_state:
+    st.session_state.selected_post = None
+if 'revamp_tone' not in st.session_state:
+    st.session_state.revamp_tone = "Professional"
+if 'revamp_section_count' not in st.session_state:
+    st.session_state.revamp_section_count = "Default (3-4)"
+if 'revamp_mood' not in st.session_state:
+    st.session_state.revamp_mood = "Elegant"
+if 'revamp_intro_theme' not in st.session_state:
+    st.session_state.revamp_intro_theme = "Standard Welcome"
+if 'revamp_conclusion_theme' not in st.session_state:
+    st.session_state.revamp_conclusion_theme = "Invitation to Connect"
+if 'revamp_title_style' not in st.session_state:
+    st.session_state.revamp_title_style = "Descriptive"
+if 'revamp_audience' not in st.session_state:
+    st.session_state.revamp_audience = "Couples"
+    
 # Functions for file management
 def find_latest_csv():
     """Find the most recently modified CSV file from previous sessions"""
@@ -459,7 +477,7 @@ def main():
             st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables")
     
     # Create tabs for different functions
-    tab1, tab2, tab3 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts", "Revamp Existing Posts"])
     
     # Auto-load the latest CSV if available
     if st.session_state.df is None:
