@@ -1,397 +1,766 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import os
+import json
+from datetime import datetime
+import traceback
+from utils.fixed_youtube_api import YouTubeAPI
+from utils.spotify_api import SpotifyAPI
+from utils.openai_api import generate_blog_post
+from utils.fixed_wordpress_api import WordPressAPI
+from utils.corrected_csv_handler import load_csv, save_csv, create_empty_playlist_df
 
+# Page configuration
 st.set_page_config(
-    page_title="Playlist Blog Generator",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    page_title="Moments & Memories Blog Generator",
+    page_icon="✨",
+    layout="wide"
 )
 
-# Add custom CSS
+# Custom CSS to match Moments & Memories branding
 st.markdown("""
 <style>
-    .main .block-container {
-        padding-top: 2rem;
-    }
-    h1, h2, h3 {
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap');
+
+    /* Main text and headers */
+    .stMarkdown, .stText, p, div {
+        font-family: 'Lato', sans-serif;
         color: #1A2A44;
     }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 1rem;
+
+    /* Headings */
+    h1, h2, h3 {
+        font-family: 'Playfair Display', serif;
+        color: #1A2A44;
     }
-    .stTabs [data-baseweb="tab"] {
-        height: 4rem;
-        white-space: pre-wrap;
-        background-color: #F5F5F5;
-        border-radius: 4px 4px 0 0;
-        gap: 1rem;
-        padding: 1rem 1rem;
+
+    h1 {
+        font-weight: 700;
+        padding-bottom: 1.5rem;
+        font-size: 2.5rem;
+        color: #D4AF37;
     }
-    .stTabs [aria-selected="true"] {
-        background-color: #D4AF37 !important;
-        color: white !important;
+    
+    /* Fix scrolling issues */
+    .main .block-container {
+        padding-bottom: 5rem;
+        max-width: 95%;
+    }
+    
+    /* Ensure containers can scroll properly */
+    .stExpander {
+        overflow: auto;
+        max-height: 600px;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# Add header
+st.markdown("""
+<div style="padding: 1.5rem 0; margin-bottom: 2rem; border-bottom: 1px solid rgba(212, 175, 55, 0.3);">
+    <h1>Moments & Memories Blog Generator</h1>
+    <p style="font-family: 'Playfair Display', serif; font-size: 1.2rem; color: #1A2A44; margin-bottom: 0; font-style: italic;">
+        Creating Moments & Memories, One Wedding at a Time
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+# Initialize session state
+if 'df' not in st.session_state:
+    st.session_state.df = None
+if 'last_saved_csv' not in st.session_state:
+    st.session_state.last_saved_csv = None
+if 'auto_loaded' not in st.session_state:
+    st.session_state.auto_loaded = False
+    
+# Functions for file management
+def find_latest_csv():
+    """Find the most recently modified CSV file from previous sessions"""
+    import glob
+    import os
+    
+    # Look for processed CSV files
+    csv_files = glob.glob("processed_playlists_*.csv")
+    
+    if not csv_files:
+        return None
+    
+    # Get file with the latest modification time
+    latest_file = max(csv_files, key=os.path.getmtime)
+    return latest_file
+
+def save_processed_csv(df, operation_type):
+    """Save CSV with timestamp and operation type"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"processed_playlists_{operation_type}_{timestamp}.csv"
+    save_csv(df, filename)
+    st.session_state.last_saved_csv = filename
+    return filename
+
+def save_blog_post(playlist_name, blog_content, title):
+    """Save blog post to a file for persistence between sessions"""
+    # Create blogs directory if it doesn't exist
+    if not os.path.exists("blogs"):
+        os.makedirs("blogs")
+    
+    # Clean the playlist name for use in filename
+    clean_name = playlist_name.split('Wedding Cocktail Hour')[0].strip()
+    # Remove any digits at the start (like "001 ")
+    clean_name = re.sub(r'^\d+\s+', '', clean_name)
+    clean_name = "".join([c if c.isalnum() or c.isspace() else "_" for c in clean_name]).strip()
+    
+    # Create filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"blogs/{clean_name}_{timestamp}.html"
+    
+    # Save blog as HTML with title
+    with open(filename, "w") as f:
+        f.write(f"<h1>{title}</h1>\n\n{blog_content}")
+    
+    return filename
+
+def find_saved_blog_posts():
+    """Find all saved blog posts in the blogs directory"""
+    # Return empty list if directory doesn't exist
+    if not os.path.exists("blogs"):
+        return []
+    
+    # Get all HTML files in the blogs directory
+    blog_files = [f for f in os.listdir("blogs") if f.endswith(".html")]
+    
+    # Sort by modification time (newest first)
+    blog_files.sort(key=lambda x: os.path.getmtime(f"blogs/{x}"), reverse=True)
+    
+    return blog_files
+
+def load_saved_blog_post(filename):
+    """Load a saved blog post from a file"""
+    try:
+        with open(f"blogs/{filename}", "r") as f:
+            content = f.read()
+            
+            # Extract title if available
+            title = "Untitled Blog Post"
+            if content.startswith("<h1>"):
+                title_end = content.find("</h1>")
+                if title_end > 0:
+                    title = content[4:title_end]
+                    content = content[title_end + 5:].strip()
+            
+            return title, content
+    except Exception as e:
+        st.error(f"Error loading blog post: {str(e)}")
+        return "Error", f"Could not load blog post: {str(e)}"
+
+def clean_playlist_name_for_blog(playlist_name):
+    """Remove the numeric prefix from playlist names when creating blog posts"""
+    import re
+    # Remove the numeric prefix (like "001 ") 
+    cleaned = re.sub(r'^\d{3}\s+', '', playlist_name)
+    return cleaned
+
+def process_playlist(playlist, youtube_api, spotify_api, operations):
+    """Process a single playlist with error handling and progress tracking"""
+    try:
+        # Filter dataframe to get only the songs for this playlist
+        playlist_df = st.session_state.df[st.session_state.df['Playlist'] == playlist].copy()
+        
+        # Initialize an empty results dictionary
+        results = {}
+        
+        # Save updates flag to track if we need to save the dataframe at the end
+        save_updates = False
+        
+        # Fetch YouTube links if selected
+        if "YouTube" in operations and youtube_api:
+            # Check if we need to fetch YouTube links
+            missing_links = playlist_df[
+                (playlist_df['YouTube_Link'].isna()) | 
+                (playlist_df['YouTube_Link'] == '')
+            ]
+            
+            # Only proceed if we have missing links
+            if not missing_links.empty:
+                total_songs = len(missing_links)
+                st.write(f"Fetching YouTube links for {total_songs} songs...")
+                
+                # Create progress bar
+                progress_bar = st.progress(0)
+                
+                # Fetch YouTube links for each song with missing link
+                for idx, row in missing_links.iterrows():
+                    try:
+                        # Create a search query combining song and artist
+                        search_query = f"{row['Song']} - {row['Artist']}"
+                        
+                        # Get YouTube link with error handling
+                        youtube_link = youtube_api.get_video_link(search_query)
+                        
+                        # Update the link in the dataframe (only if we got a valid link)
+                        if youtube_link:
+                            playlist_df.at[idx, 'YouTube_Link'] = youtube_link
+                        
+                        # Update progress bar
+                        progress = min(1.0, (idx + 1) / total_songs)
+                        progress_bar.progress(progress)
+                        
+                    except Exception as e:
+                        # Handle YouTube API errors gracefully
+                        if "quota" in str(e).lower():
+                            st.warning("⚠️ YouTube API quota exceeded. Please try again tomorrow.")
+                            break
+                        else:
+                            st.warning(f"⚠️ Could not fetch YouTube link for '{search_query}': {str(e)}")
+                
+                # Update the main DataFrame with the new YouTube links
+                st.session_state.df.update(playlist_df)
+                save_updates = True
+                
+                # Note the file in results for display purposes
+                filename = save_processed_csv(st.session_state.df, "youtube")
+                results['youtube_file'] = filename
+                st.success("✅ YouTube links fetched and saved")
+            else:
+                st.info("ℹ️ All songs already have YouTube links")
+
+        # Fetch Spotify playlist if selected
+        if "Spotify" in operations and spotify_api:
+            with st.spinner("🎧 Fetching Spotify playlist link..."):
+                try:
+                    # Use the DJ's actual Spotify username from their profile link
+                    user_id = "bm8eje5tcjj9eazftizqoikwm"  # The correct user ID from the Spotify URL
+                    
+                    # Clean the playlist name for Spotify search - just use one cleaning method
+                    # Don't clean it twice as that can cause too much difference from actual Spotify names
+                    spotify_clean_name = re.sub(r'^\d{3}\s+', '', playlist)
+                    
+                    st.info(f"Searching for Spotify playlist: '{spotify_clean_name}'")
+                    spotify_link = spotify_api.get_playlist_link(user_id, spotify_clean_name)
+                except Exception as e:
+                    st.error(f"Error with Spotify API: {str(e)}")
+                    spotify_link = None
+                
+                if spotify_link:
+                    results['spotify_link'] = spotify_link
+                    
+                    # Save Spotify link to the DataFrame for all songs in this playlist
+                    for idx in playlist_df.index:
+                        playlist_df.at[idx, 'Spotify_Link'] = spotify_link
+                    
+                    # Update the main DataFrame with the new Spotify links
+                    st.session_state.df.update(playlist_df)
+                    save_updates = True
+                    
+                    st.success(f"✅ Spotify playlist found and saved to CSV")
+                else:
+                    st.warning("⚠️ Spotify playlist not found")
+
+        # Save changes to CSV if we made updates
+        if save_updates:
+            filename = save_processed_csv(st.session_state.df, "updated")
+            results['updated_file'] = filename
+
+        # Generate blog post if selected
+        if "Blog" in operations:
+            with st.spinner("✍️ Generating blog post..."):
+                # Use the Spotify link we just fetched, or look for one in the DataFrame
+                spotify_link = results.get('spotify_link')
+                
+                # If we don't have a link from the API, check if there's one in the DataFrame
+                if not spotify_link and 'Spotify_Link' in playlist_df.columns:
+                    # Get the first non-empty Spotify link
+                    spotify_links = playlist_df[
+                        (playlist_df['Spotify_Link'].notna()) & 
+                        (playlist_df['Spotify_Link'] != '')
+                    ]['Spotify_Link']
+                    
+                    if not spotify_links.empty:
+                        spotify_link = spotify_links.iloc[0]
+                
+                # Clean the playlist name for the blog post (remove numeric prefix)
+                clean_name = clean_playlist_name_for_blog(playlist)
+                
+                # Generate the blog post
+                blog_post = generate_blog_post(
+                    playlist_name=clean_name,
+                    songs_df=playlist_df,
+                    spotify_link=spotify_link
+                )
+                results['blog_post'] = blog_post
+                
+                # Generate a default title for the blog post
+                title_base = clean_name.split('Wedding Cocktail Hour')[0].strip()
+                default_title = f"The {title_base} Wedding Cocktail Hour"
+                results['blog_title'] = default_title
+                
+                # Save the blog post to a file
+                saved_file = save_blog_post(
+                    playlist_name=playlist,
+                    blog_content=blog_post,
+                    title=default_title
+                )
+                results['blog_file'] = saved_file
+                st.success(f"✅ Blog post generated and saved")
+
+        return True, results
+
+    except Exception as e:
+        st.error(f"❌ Error processing playlist: {str(e)}")
+        st.error(traceback.format_exc())
+        return False, {}
+
 def main():
-    st.title("📋 Playlist Blog Generator")
+    # Initialize API clients with error handling
+    youtube_api = None
+    spotify_api = None
+    wordpress_api = None
+    
+    # YouTube API initialization
+    try:
+        youtube_key = os.getenv("YOUTUBE_API_KEY")
+        if youtube_key:
+            youtube_api = YouTubeAPI(youtube_key)
+            youtube_status, youtube_message = youtube_api.verify_connection()
+            if not youtube_status and "quota" in youtube_message.lower():
+                st.sidebar.warning("⚠️ YouTube API quota exceeded. Some features may be limited.")
+                # Still allow the API client to be used, just with warnings about quota
+            elif not youtube_status:
+                st.sidebar.error(f"⚠️ YouTube API error: {youtube_message}")
+                youtube_api = None
+        else:
+            st.sidebar.error("⚠️ YouTube API key is missing.")
+    except Exception as e:
+        st.sidebar.error(f"⚠️ YouTube API error: {str(e)}")
+        youtube_api = None
+    
+    # Spotify API initialization
+    try:
+        spotify_api = SpotifyAPI(
+            os.getenv("SPOTIFY_CLIENT_ID"),
+            os.getenv("SPOTIFY_CLIENT_SECRET")
+        )
+    except Exception as e:
+        st.sidebar.error(f"⚠️ Spotify API error: {str(e)}")
+        spotify_api = None
+    
+    # WordPress API initialization
+    try:
+        wordpress_api = None  # Initialize to None first
+        # Check if WordPress credentials are available
+        if all([
+            os.getenv("WORDPRESS_API_URL"),
+            os.getenv("WORDPRESS_USERNAME"),
+            os.getenv("WORDPRESS_PASSWORD")
+        ]):
+            # Get the credentials from environment variables
+            api_url = os.getenv("WORDPRESS_API_URL")
+            username = os.getenv("WORDPRESS_USERNAME")
+            password = os.getenv("WORDPRESS_PASSWORD")
+            
+            # Fix for common WordPress URL issues
+            if api_url and (api_url.endswith('/wp-json') or api_url.endswith('/wp-json/')):
+                api_url = api_url.rsplit('/wp-json', 1)[0]
+            
+            # Initialize WordPress API
+            wordpress_api = WordPressAPI(api_url, username, password)
+    except Exception as e:
+        st.sidebar.error(f"⚠️ WordPress API initialization failed: {str(e)}")
+        wordpress_api = None
+        
+    # Display API status in sidebar
+    with st.sidebar:
+        st.subheader("API Status")
+        
+        # YouTube API status
+        if youtube_api:
+            st.success("✅ YouTube API: Connected")
+        else:
+            st.error("❌ YouTube API: Not connected")
+            
+        # Spotify API status
+        if spotify_api:
+            st.success("✅ Spotify API: Connected")
+        else:
+            st.error("❌ Spotify API: Not connected")
+            
+        # WordPress API status
+        if wordpress_api:
+            if wordpress_api.test_connection():
+                st.success("✅ WordPress API: Connected and authenticated")
+            else:
+                st.warning("⚠️ WordPress API: Connection issues")
+                
+                # Add WordPress troubleshooting expander
+                with st.expander("WordPress Troubleshooting Tools"):
+                    st.info("Diagnosing WordPress connection issues...")
+                    
+                    # Show formatted API URL
+                    wp_url = os.environ.get("WORDPRESS_API_URL", "").strip()
+                    wp_username = os.environ.get("WORDPRESS_USERNAME", "").strip()
+                    wp_password = os.environ.get("WORDPRESS_PASSWORD", "").strip()
+                    
+                    st.markdown("### WordPress Connection Info")
+                    st.info(f"API URL: `{wp_url}`")
+                    
+                    # Check how API URL is being formatted
+                    if not wp_url.startswith('http'):
+                        st.warning("⚠️ URL does not start with http or https")
+                    
+                    # Check if URL already ends with /wp-json
+                    if wp_url.endswith('/wp-json'):
+                        st.warning("⚠️ URL should not end with /wp-json - this is added automatically")
+                    
+                    # Check if credentials look correct
+                    if len(wp_username) < 2:
+                        st.error("❌ Username is too short or empty")
+                    else:
+                        st.info(f"Username length: {len(wp_username)} characters")
+                    
+                    if len(wp_password) < 2:
+                        st.error("❌ Password is too short or empty")
+                    else:
+                        st.info(f"Password length: {len(wp_password)} characters")
+                    
+                    # Application password check
+                    if ' ' in wp_password:
+                        st.info("📝 Using WordPress Application Password (contains spaces)")
+                        segments = wp_password.split()
+                        if all(len(s) == 4 for s in segments):
+                            st.success("✅ Application password format looks correct")
+                        else:
+                            segment_lengths = [len(s) for s in segments]
+                            st.warning(f"⚠️ Application password segments should be 4 characters each. Current segments: {segment_lengths}")
+                    else:
+                        st.info("📝 Using standard password (no spaces detected)")
+                    
+                    # Button to run complete WordPress diagnostics
+                    if st.button("🔍 Run Full WordPress Diagnostics"):
+                        with st.spinner("Running comprehensive WordPress diagnostics..."):
+                            wordpress_api.diagnose_connection()
+                            st.info("✅ Diagnostic information logged to the console")
+                            st.info("Please check the application logs for detailed results")
+            
+            # Add WordPress test post button
+            if st.button("🧪 Test WordPress Post"):
+                with st.spinner("Creating test post..."):
+                    try:
+                        result = wordpress_api.create_test_post()
+                        if result.get('success'):
+                            st.success(f"✅ Test post created successfully! ID: {result.get('post_id')}")
+                            if result.get('edit_url'):
+                                st.markdown(f"[View Post on WordPress]({result.get('edit_url')})")
+                        else:
+                            st.error(f"❌ Test post failed: {result.get('error')}")
+                    except Exception as e:
+                        st.error(f"❌ Error creating test post: {str(e)}")
+        else:
+            st.error("❌ WordPress API: Not connected")
+            # Show missing WordPress API details
+            st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables")
     
     # Create tabs for different functions
-    tabs = st.tabs(["Process Playlists", "Blog Generator", "Manage Data", "Revamp Posts"])
+    tab1, tab2, tab3 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts"])
     
-    with tabs[0]:
-        st.header("Process Playlists")
-        st.write("This tab allows you to process playlists from CSV files, fetch YouTube links, and find Spotify playlists.")
+    # Auto-load the latest CSV if available
+    if st.session_state.df is None:
+        latest_csv = find_latest_csv()
+        if latest_csv:
+            try:
+                st.session_state.df = load_csv(latest_csv)
+                st.session_state.last_saved_csv = latest_csv
+                st.session_state.auto_loaded = True
+            except Exception:
+                # Silent exception - we'll just not auto-load if there's an issue
+                pass
+    
+    # Tab 1: Process Playlists
+    with tab1:
+        st.subheader("Process Wedding DJ Playlists")
         
-        # Simple example form
-        with st.form(key="process_form"):
-            st.selectbox("CSV File", ["Cocktail-Hours.csv", "Playlists.csv"])
-            st.multiselect("Playlists to Process", ["The Summer Pop Wedding Cocktail Hour", "The Smooth Sail Wedding Cocktail Hour"])
+        # CSV upload section
+        uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+        
+        # Process the uploaded file
+        if uploaded_file is not None:
+            try:
+                st.session_state.df = load_csv(uploaded_file)
+                st.success("✅ CSV file loaded successfully!")
+                
+                # Show a preview of the data
+                if st.session_state.df is not None and not st.session_state.df.empty:
+                    st.write(f"Found {len(st.session_state.df)} songs across {st.session_state.df['Playlist'].nunique()} playlists")
+                    
+                    # Show a small sample
+                    st.write("Preview of loaded data:")
+                    preview_cols = ['Playlist', 'Song', 'Artist', 'YouTube_Link', 'Spotify_Link']
+                    st.dataframe(st.session_state.df[preview_cols].head(5))
+                    
+            except Exception as e:
+                st.error(f"❌ Error loading CSV file: {str(e)}")
+                st.error(traceback.format_exc())
+        
+        # Show what we're working with
+        if st.session_state.auto_loaded and st.session_state.df is not None:
+            st.info(f"ℹ️ Auto-loaded data from {st.session_state.last_saved_csv}")
+            st.session_state.auto_loaded = False
+        
+        # If we have data, display playlist processing options
+        if st.session_state.df is not None:
+            playlists = st.session_state.df['Playlist'].unique()
+            
+            # Keep the numeric prefixes in the display names
+            
+            # Playlist selection and operations
+            selected_playlists = st.multiselect(
+                "Select playlists to process:", 
+                options=playlists
+            )
+            
+            # Operations selection
+            st.write("Select operations to perform:")
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.checkbox("YouTube", value=True)
+                fetch_youtube = st.checkbox("Fetch YouTube Links", value=True)
             with col2:
-                st.checkbox("Spotify", value=True)
+                fetch_spotify = st.checkbox("Fetch Spotify Playlist", value=True)
             with col3:
-                st.checkbox("Generate Blog", value=True)
+                generate_blog = st.checkbox("Generate Blog Post", value=True)
             
-            st.form_submit_button("Start Processing")
-    
-    with tabs[1]:
-        st.header("Blog Generator")
-        st.write("Generate blog posts from processed playlists.")
+            # Process button
+            if selected_playlists:
+                if st.button("🚀 Process Selected Playlists"):
+                    operations = []
+                    if fetch_youtube: operations.append("YouTube")
+                    if fetch_spotify: operations.append("Spotify")
+                    if generate_blog: operations.append("Blog")
+                    
+                    if not operations:
+                        st.warning("⚠️ Please select at least one operation to perform.")
+                    else:
+                        # Process each playlist
+                        for playlist in selected_playlists:
+                            with st.expander(f"Processing: {playlist}", expanded=True):
+                                success, results = process_playlist(playlist, youtube_api, spotify_api, operations)
+                                
+                                if success:
+                                    # Display results
+                                    if 'youtube_file' in results:
+                                        st.success(f"✅ YouTube links updated and saved to {results['youtube_file']}")
+                                        
+                                    if 'spotify_link' in results:
+                                        st.markdown(f"""
+                                        <p>Spotify Playlist Link: <a href="{results['spotify_link']}" target="_blank">{results['spotify_link']}</a></p>
+                                        """, unsafe_allow_html=True)
+                                        
+                                    if 'blog_post' in results:
+                                        st.write("✨ Generated Blog Post:")
+                                        
+                                        # If blog post was saved to a file, show a success message
+                                        if 'blog_file' in results:
+                                            st.success(f"✅ Blog post saved to {results['blog_file']} for future reference")
+                                        
+                                        # Show the blog content in a text area
+                                        blog_content = results['blog_post']
+                                        st.text_area("", blog_content, height=300)
+                                        
+                                        # WordPress posting section
+                                        blog_title = results.get('blog_title', '')
+                                        title = st.text_input("Blog Post Title", value=blog_title)
+                                        
+                                        # WordPress posting section - only show if API is initialized
+                                        if wordpress_api is None:
+                                            st.error("WordPress API not configured - cannot post to WordPress")
+                                        else:
+                                            # Show WordPress posting button with a unique key
+                                            button_key = f"post_wordpress_{playlist}_processed"
+                                            if st.button("🚀 Post to WordPress", key=button_key):
+                                                with st.spinner("📝 Creating draft post in WordPress..."):
+                                                    try:
+                                                        # Post to WordPress as draft
+                                                        post_result = wordpress_api.create_post(
+                                                            title=title,
+                                                            content=blog_content,
+                                                            status="draft"
+                                                        )
+                                                        
+                                                        if post_result.get('success'):
+                                                            post_id = post_result.get('post_id')
+                                                            post_url = post_result.get('post_url')
+                                                            edit_url = post_result.get('edit_url')
+                                                            
+                                                            st.success(f"✅ Draft post created! ID: {post_id}")
+                                                            st.write(f"View/Edit: {edit_url}")
+                                                        else:
+                                                            error_msg = post_result.get('error', 'Unknown error')
+                                                            st.error(f"❌ Failed to create post: {error_msg}")
+                                                    except Exception as e:
+                                                        st.error(f"❌ Error posting to WordPress: {str(e)}")
+                        
+    # Tab 2: Edit CSV Data
+    with tab2:
+        st.subheader("Edit CSV Data")
         
-        st.selectbox("Select Playlist", ["The Summer Pop Wedding Cocktail Hour", "The Smooth Sail Wedding Cocktail Hour"])
-        
-        st.subheader("Customization Options")
-        model = st.selectbox("AI Model", ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"])
-        temperature = st.slider("Creativity Level", 0.0, 1.0, 0.7)
-        
-        with st.expander("Style Options", expanded=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.selectbox("Tone", ["Professional", "Conversational", "Romantic", "Upbeat"])
-                st.selectbox("Mood", ["Elegant", "Fun", "Emotional", "Energetic"])
-            with col2:
-                st.selectbox("Audience", ["Modern Couples", "Traditional Couples", "Brides"])
-                st.selectbox("Sections", ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)"])
-        
-        if st.button("Generate Blog Post"):
-            st.success("Blog post generated successfully!")
-    
-    with tabs[2]:
-        st.header("Manage Data")
-        st.write("Manage your CSV files and saved blog posts.")
-        
-        st.subheader("CSV Files")
-        st.dataframe(pd.DataFrame({
-            "Filename": ["processed_playlists_updated_20250425_194937.csv", "Cocktail-Hours.csv"],
-            "Date Modified": ["Apr 25, 2025", "Mar 15, 2025"],
-            "Playlists": [56, 72]
-        }))
-        
-        st.subheader("Saved Blog Posts")
-        st.dataframe(pd.DataFrame({
-            "Title": ["The Summer Pop Wedding Cocktail Hour", "The Smooth Sail Wedding Cocktail Hour"],
-            "Date Created": ["Apr 28, 2025", "Apr 27, 2025"],
-            "Status": ["Saved locally", "Published to WordPress"]
-        }))
-    
-    with tabs[3]:
-        st.header("Revamp Existing Posts")
-        st.write("Search and revamp existing WordPress blog posts.")
-        
-        # Initialize session state variables if they don't exist
-        if 'search_results' not in st.session_state:
-            st.session_state.search_results = {}
-        
-        if 'revamped_content' not in st.session_state:
-            st.session_state.revamped_content = None
+        if st.session_state.df is not None:
+            # Get unique playlists from the dataframe
+            playlists = st.session_state.df['Playlist'].unique()
             
-        if 'current_post' not in st.session_state:
-            st.session_state.current_post = None
+            # Format the playlist names for display (remove numeric prefixes)
+            display_names = {p: re.sub(r'^\d{3}\s+', '', p) for p in playlists}
             
-        # Search form
-        search_col1, search_col2 = st.columns([3, 1])
-        with search_col1:
-            search_term = st.text_input("Search WordPress Posts", placeholder="Enter keywords to search for posts...")
-        
-        with search_col2:
-            search_button = st.button("🔍 Search")
+            # Dropdown to select a playlist to edit
+            selected_edit_playlist = st.selectbox(
+                "Select a playlist to edit:",
+                options=playlists,
+                format_func=lambda x: display_names[x]
+            )
             
-        # Display search results and post selection
-        if search_button and search_term:
-            st.session_state.search_results = {
-                "The Summer Pop Wedding Cocktail Hour": 123,
-                "The Valentine's Day Wedding Cocktail Hour": 456,
-                "The Smooth Sail Wedding Cocktail Hour": 789
-            }
-            
-        # Display post selection if we have search results
-        if st.session_state.search_results:
-            post_options = list(st.session_state.search_results.keys())
-            selected_post_title = st.selectbox("Select a Post", options=post_options)
-            
-            col1, col2 = st.columns([3, 1])
-            with col2:
-                load_post_button = st.button("📄 Load Post")
-            
-            # When a post is loaded, show its content and the revamp options
-            if load_post_button and selected_post_title:
-                selected_post_id = st.session_state.search_results[selected_post_title]
+            if selected_edit_playlist:
+                # Filter dataframe for selected playlist
+                edit_df = st.session_state.df[st.session_state.df['Playlist'] == selected_edit_playlist].copy()
                 
-                # Mock loading post content
-                with st.spinner("Loading post content..."):
-                    # Simulate fetching post from WordPress
-                    post = {
-                        'id': selected_post_id,
-                        'title': selected_post_title,
-                        'content': f"""
-                        <h2>{selected_post_title}</h2>
-                        <p>This is the original content of the {selected_post_title} post. 
-                        It contains information about the playlist and some of the songs included.</p>
-                        <p>The songs in this playlist create a perfect atmosphere for your wedding cocktail hour.</p>
-                        """,
-                        'categories': [5, 8]
-                    }
-                    
-                    # Store post in session state
-                    st.session_state.current_post = post
-                    
-                    # Show post preview
-                    st.write("### Original Post Content")
-                    with st.expander("View Original HTML Content", expanded=False):
-                        st.code(post['content'], language="html")
-                    
-                    # Show rendered preview
-                    st.write("### Original Post Preview")
-                    st.markdown(post['content'], unsafe_allow_html=True)
-                    
-                    # Blog style customization options
-                    st.write("### Revamp Style Options")
-                    
-                    # Model selection
-                    model = st.selectbox(
-                        "AI Model",
-                        ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-                        index=0,
-                        help="Select which OpenAI model to use for content generation"
-                    )
-                    
-                    temperature = st.slider(
-                        "Creativity Level", 
-                        min_value=0.0, 
-                        max_value=1.0, 
-                        value=0.7, 
-                        step=0.1,
-                        help="Higher values make output more creative, lower values make it more predictable"
-                    )
-                    
-                    # Initialize form for revamp options
-                    with st.form(key="revamp_form"):
-                        # Basic style options with both dropdowns and custom inputs
-                        st.subheader("Basic Style")
-                        
-                        # Tone options with custom option
-                        tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
-                        tone = st.selectbox(
-                            "Writing Tone",
-                            tone_options,
-                            index=0
-                        )
-                        
-                        if tone == "Custom":
-                            custom_tone = st.text_input("Custom tone", 
-                                placeholder="e.g., 'Inspirational with a touch of humor'")
-                            tone = custom_tone if custom_tone else "Professional"
-                        
-                        # Section count with dropdown and custom
-                        section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
-                        section_count_selection = st.selectbox(
-                            "Content Sections",
-                            section_count_options,
-                            index=0
-                        )
-                        
-                        section_count = 4
-                        if section_count_selection == "Custom":
-                            section_count = st.number_input("Number of content sections", min_value=2, max_value=6, value=4)
-                        else:
-                            # Parse the selection to get the actual number
-                            if section_count_selection == "Default (3-4)":
-                                section_count = 4
-                            elif section_count_selection == "Minimal (2-3)":
-                                section_count = 3
-                            elif section_count_selection == "Comprehensive (4-5)":
-                                section_count = 5
-                            elif section_count_selection == "Detailed (5-6)":
-                                section_count = 6
-                        
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            # Mood options with custom
-                            mood_options = ["Elegant", "Fun", "Emotional", "Energetic", "Romantic", "Sophisticated", "Custom"]
-                            mood = st.selectbox(
-                                "Overall Mood",
-                                mood_options,
-                                index=0
-                            )
-                            
-                            if mood == "Custom":
-                                custom_mood = st.text_input("Custom mood", 
-                                    placeholder="e.g., 'Intimate and heartfelt'")
-                                mood = custom_mood if custom_mood else "Elegant"
-                            
-                            # Introduction theme
-                            intro_theme_options = ["Standard Welcome", "Personal Story", "Setting the Scene", "Custom"]
-                            intro_theme = st.selectbox(
-                                "Introduction Theme",
-                                intro_theme_options,
-                                index=0
-                            )
-                            
-                            if intro_theme == "Custom":
-                                custom_intro = st.text_input("Custom introduction theme", 
-                                    placeholder="e.g., 'Begin with a quote about music and love'")
-                                intro_theme = custom_intro if custom_intro else "Standard Welcome"
-                        
-                        with col2:
-                            # Audience options with custom
-                            audience_options = ["Modern Couples", "Traditional Couples", "Brides", "Grooms", "Wedding Planners", "Custom"]
-                            audience = st.selectbox(
-                                "Target Audience",
-                                audience_options,
-                                index=0
-                            )
-                            
-                            if audience == "Custom":
-                                custom_audience = st.text_input("Custom audience", 
-                                    placeholder="e.g., 'Music-loving couples'")
-                                audience = custom_audience if custom_audience else "Modern Couples"
-                            
-                            # Conclusion theme
-                            conclusion_options = ["Standard Closing", "Call to Action", "Personal Touch", "Custom"]
-                            conclusion_theme = st.selectbox(
-                                "Conclusion Theme",
-                                conclusion_options,
-                                index=0
-                            )
-                            
-                            if conclusion_theme == "Custom":
-                                custom_conclusion = st.text_input("Custom conclusion theme", 
-                                    placeholder="e.g., 'End with planning tips'")
-                                conclusion_theme = custom_conclusion if custom_conclusion else "Standard Closing"
-                        
-                        # Advanced options
-                        with st.expander("Advanced Customization"):
-                            title_style_options = ["Descriptive", "Short", "Playful", "Elegant", "Question", "Custom"]
-                            title_style = st.selectbox(
-                                "Section Title Style",
-                                title_style_options,
-                                index=0
-                            )
-                            
-                            if title_style == "Custom":
-                                custom_title = st.text_input("Custom title style", 
-                                    placeholder="e.g., 'Alliterative and punchy'")
-                                title_style = custom_title if custom_title else "Descriptive"
-                            
-                            custom_guidance = st.text_area(
-                                "Custom Writing Guidance", 
-                                placeholder="Add any specific instructions or guidance for the blog post generation...",
-                                height=100
-                            )
-                        
-                        # Submit button for the form
-                        revamp_button = st.form_submit_button("✨ Revamp This Post")
-                    
-                    # Process the revamp request if form was submitted
-                    if revamp_button:
-                        # Prepare style options dictionary
-                        style_options = {
-                            "tone": tone,
-                            "mood": mood,
-                            "audience": audience,
-                            "section_count": section_count,
-                            "intro_theme": intro_theme,
-                            "conclusion_theme": conclusion_theme,
-                            "title_style": title_style,
-                            "custom_guidance": custom_guidance if 'custom_guidance' in locals() else "",
-                            "model": model,
-                            "temperature": temperature
-                        }
-                        
-                        with st.spinner("Revamping post content... This may take a minute..."):
-                            # Simulate blog revamping with OpenAI (mock for now)
-                            revamped_content = f"""
-                            <h2>{selected_post_title}</h2>
-                            <p>Welcome to the perfect musical journey for your wedding celebration! The {selected_post_title} curates an exquisite selection of songs that will create the ideal atmosphere as your guests mingle and enjoy cocktails after your ceremony.</p>
-                            
-                            <h3>Setting the Perfect Mood</h3>
-                            <p>This carefully curated playlist strikes the perfect balance between {mood.lower()} energy and romantic ambiance. The songs create a sophisticated backdrop that encourages conversation while maintaining the celebratory spirit of your special day.</p>
-                            
-                            <h3>Contemporary Classics</h3>
-                            <p>Featuring modern hits that everyone will recognize alongside timeless classics, this playlist ensures all your guests - from college friends to family elders - will appreciate the musical selection.</p>
-                            
-                            <h3>Conversation Starters</h3>
-                            <p>These musical selections aren't just background noise - they're conversation starters! Watch as your guests connect over favorite songs and share memories associated with these beloved tracks.</p>
-                            
-                            <h3>The Perfect Transition</h3>
-                            <p>As your cocktail hour winds down, the playlist subtly shifts energy to prepare everyone for the reception festivities ahead, creating the perfect musical journey throughout your celebration.</p>
-                            
-                            <p>Need help implementing the perfect wedding soundtrack? Reach out to our team and we'll help craft the musical experience of your dreams!</p>
-                            """
-                            
-                            # Store in session state to keep it visible
-                            st.session_state.revamped_content = revamped_content
-                            st.session_state.revamp_post_id = post['id']
-                            st.session_state.revamp_post_title = post['title']
-                            st.session_state.revamp_post_categories = post.get('categories', [])
-                            
-                            # Success message
-                            st.success("✅ Post successfully revamped! See the preview below.")
-        
-        # Display revamped content if available in session state
-        if 'revamped_content' in st.session_state and st.session_state.revamped_content:
-            # Make sure this stays visible even when the page reloads
-            st.markdown("---")
-            st.markdown("## Revamped Post Results")
-            
-            # Show revamped preview
-            st.subheader("Revamped Post Preview")
-            st.markdown(st.session_state.revamped_content, unsafe_allow_html=True)
-            
-            # Editing options in an expander to save space
-            with st.expander("Edit Revamped Content", expanded=True):
-                edited_content = st.text_area(
-                    "HTML Content (you can edit this)",
-                    value=st.session_state.revamped_content,
-                    height=400
+                # Determine columns to display
+                edit_columns = ['Song', 'Artist', 'YouTube_Link', 'Spotify_Link']
+                
+                # Display the dataframe for viewing
+                st.dataframe(
+                    edit_df[edit_columns],
+                    use_container_width=True,
+                    hide_index=True
                 )
                 
-                # Action buttons in columns
-                action_col1, action_col2 = st.columns(2)
-                
-                with action_col1:
-                    if st.button("📝 Create as New Draft", key="create_draft"):
-                        with st.spinner("Creating new draft post..."):
-                            # Simulate WordPress API post creation
-                            title = f"Revamped: {st.session_state.revamp_post_title}"
-                            st.success(f"✅ New draft '{title}' created successfully!")
-                            st.write("Edit URL: https://mmweddingspa.com/wp-admin/post.php?post=789&action=edit")
-                
-                with action_col2:
-                    if st.button("💾 Save Locally", key="save_locally"):
-                        with st.spinner("Saving blog post locally..."):
-                            # Simulate local saving
-                            filename = f"revamped_{st.session_state.revamp_post_id}"
-                            st.success(f"✅ Revamped post saved successfully as '{filename}'")
+                # Button to add new songs
+                if st.button("➕ Add New Song"):
+                    # Create a new row with the current playlist
+                    new_row = {
+                        'Playlist': selected_edit_playlist,
+                        'Song': 'New Song',
+                        'Artist': 'Artist Name',
+                        'Song_Artist': 'New Song-Artist Name',
+                        'YouTube_Link': '',
+                        'Spotify_Link': edit_df['Spotify_Link'].iloc[0] if 'Spotify_Link' in edit_df.columns else ''
+                    }
+                    
+                    # Add the new row to the dataframe
+                    st.session_state.df = pd.concat([
+                        st.session_state.df, 
+                        pd.DataFrame([new_row])
+                    ], ignore_index=True)
+                    
+                    # Save the updated dataframe
+                    filename = save_processed_csv(st.session_state.df, "added_song")
+                    st.success(f"✅ Added new song to playlist and saved to {filename}!")
+                    st.experimental_rerun()
+            
+            # Create new playlist section
+            st.markdown("---")
+            st.subheader("Create New Playlist")
+            
+            # Input fields for new playlist
+            new_playlist_name = st.text_input(
+                "New Playlist Name",
+                placeholder="e.g., The Elegant Wedding Cocktail Hour"
+            )
+            
+            # Create button
+            if st.button("✨ Create New Playlist"):
+                if new_playlist_name:
+                    # Make sure it has the right format
+                    if "Wedding Cocktail Hour" not in new_playlist_name:
+                        new_playlist_name = f"{new_playlist_name} Wedding Cocktail Hour"
+                    
+                    # Add numeric prefix (find the highest existing number and add 1)
+                    max_number = 0
+                    for playlist in playlists:
+                        try:
+                            # Extract the number from the playlist name
+                            number = int(playlist.split(' ')[0])
+                            max_number = max(max_number, number)
+                        except:
+                            # If we can't extract a number, just continue
+                            pass
+                    
+                    # Format the playlist name with the next number
+                    formatted_playlist_name = f"{max_number + 1:03d} {new_playlist_name}"
+                    
+                    # Add empty row with the new playlist
+                    new_row = {
+                        'Playlist': formatted_playlist_name,
+                        'Song': 'First Song',
+                        'Artist': 'Artist Name',
+                        'Song_Artist': 'First Song-Artist Name',
+                        'YouTube_Link': '',
+                        'Spotify_Link': ''
+                    }
+                    
+                    # Add to dataframe
+                    st.session_state.df = pd.concat([
+                        st.session_state.df, 
+                        pd.DataFrame([new_row])
+                    ], ignore_index=True)
+                    
+                    # Save updated dataframe
+                    filename = save_processed_csv(st.session_state.df, "new_playlist")
+                    st.success(f"✅ Created new playlist '{new_playlist_name}' and saved to {filename}!")
+                    st.experimental_rerun()
+                else:
+                    st.warning("⚠️ Please enter a playlist name")
         else:
-            st.info("Search for posts to begin revamping content.")
+            st.warning("⚠️ Please upload a CSV file first or select a previously saved file.")
+    
+    # Tab 3: Saved Blog Posts
+    with tab3:
+        st.subheader("Saved Blog Posts")
+        
+        # Find all saved blog posts
+        blog_files = find_saved_blog_posts()
+        
+        if blog_files:
+            # Create a dropdown to select a blog post
+            selected_blog = st.selectbox("Select a saved blog post:", blog_files)
+            
+            if selected_blog:
+                # Load the selected blog post
+                title, content = load_saved_blog_post(selected_blog)
+                
+                # Display the title and content
+                st.write(f"### {title}")
+                st.text_area("Blog Content", content, height=300)
+                
+                # WordPress posting section
+                if wordpress_api:
+                    # Add a unique key for this button to avoid duplicate element IDs
+                    button_key = f"post_wordpress_{selected_blog}"
+                    if st.button("🚀 Post to WordPress", key=button_key):
+                        with st.spinner("📝 Creating draft post in WordPress..."):
+                            try:
+                                # Post to WordPress as draft
+                                result = wordpress_api.create_post(
+                                    title=title,
+                                    content=content,
+                                    status="draft"
+                                )
+                                
+                                if result.get('success'):
+                                    post_id = result.get('post_id')
+                                    post_url = result.get('post_url')
+                                    edit_url = result.get('edit_url')
+                                    
+                                    st.success(f"✅ Draft post created! ID: {post_id}")
+                                    st.write(f"View/Edit: {edit_url}")
+                                else:
+                                    error_msg = result.get('error', 'Unknown error')
+                                    st.error(f"❌ Failed to create post: {error_msg}")
+                            except Exception as e:
+                                st.error(f"❌ Error posting to WordPress: {str(e)}")
+        else:
+            st.info("No saved blog posts found. Generate some blog posts first!")
 
 if __name__ == "__main__":
-    main()
+    import re  # Import at the top
+    print("Starting application")
+    try:
+        main()
+        print("Main function completed successfully")
+    except Exception as e:
+        print(f"Error in main function: {str(e)}")
+        traceback.print_exc()
