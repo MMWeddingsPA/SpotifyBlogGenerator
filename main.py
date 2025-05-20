@@ -772,6 +772,406 @@ def main():
                                 st.error(f"❌ Error posting to WordPress: {str(e)}")
         else:
             st.info("No saved blog posts found. Generate some blog posts first!")
+    
+    # Tab 4: WordPress Blog Revamp
+    with tab4:
+        st.subheader("Revamp Existing WordPress Blog Posts")
+        
+        if wordpress_api:
+            # First step - fetch and select a post to revamp
+            with st.container():
+                st.markdown("#### Step 1: Select a post to revamp")
+                
+                # Add WordPress post search/fetch section
+                search_term = st.text_input(
+                    "Search posts (leave empty to fetch all)",
+                    placeholder="Enter search term (e.g., 'cocktail hour')"
+                )
+                
+                # Fetch posts button
+                if st.button("🔍 Fetch WordPress Posts"):
+                    with st.spinner("Fetching posts from WordPress..."):
+                        try:
+                            posts = wordpress_api.get_posts(
+                                search_term=search_term if search_term else None,
+                                per_page=25
+                            )
+                            
+                            if posts:
+                                st.session_state.wordpress_posts = posts
+                                st.success(f"✅ Found {len(posts)} posts")
+                            else:
+                                st.warning("No posts found matching your search criteria")
+                                st.session_state.wordpress_posts = []
+                        except Exception as e:
+                            st.error(f"❌ Error fetching posts: {str(e)}")
+                
+                # Display post selection if we have posts
+                if hasattr(st.session_state, 'wordpress_posts') and st.session_state.wordpress_posts:
+                    post_titles = [f"{post['title']['rendered']} (ID: {post['id']})" for post in st.session_state.wordpress_posts]
+                    
+                    # Get selected post
+                    selected_post_title = st.selectbox(
+                        "Select post to revamp:",
+                        post_titles,
+                        key="post_selection"
+                    )
+                    
+                    # Get the post ID from the selection
+                    if selected_post_title:
+                        post_id = int(selected_post_title.split("(ID: ")[1].split(")")[0])
+                        
+                        # Store selected post in session state
+                        selected_post = next((post for post in st.session_state.wordpress_posts if post['id'] == post_id), None)
+                        
+                        if selected_post and (st.session_state.selected_post is None or st.session_state.selected_post['id'] != post_id):
+                            st.session_state.selected_post = selected_post
+                            st.experimental_rerun()  # Force a rerun to update the UI
+            
+            # Display the selected post and provide revamp options
+            if st.session_state.selected_post:
+                with st.container():
+                    st.markdown("#### Step 2: Review and Revamp Post")
+                    
+                    # Show the current post content
+                    st.markdown("##### Current Post Content")
+                    with st.expander("Show Original Content", expanded=False):
+                        st.markdown(f"**Title:** {st.session_state.selected_post['title']['rendered']}")
+                        st.markdown(st.session_state.selected_post['content']['rendered'], unsafe_allow_html=True)
+                    
+                    # Extract songs and any Spotify playlist from the post
+                    post_content = st.session_state.selected_post['content']['rendered']
+                    songs = extract_songs_from_html(post_content)
+                    spotify_link = extract_spotify_link(post_content)
+                    
+                    # Display extracted information
+                    st.markdown("##### Extracted Information")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Songs detected:** {len(songs)}")
+                    with col2:
+                        if spotify_link:
+                            st.write(f"**Spotify playlist found:** Yes")
+                        else:
+                            st.write("**Spotify playlist found:** No")
+                    
+                    # Show song list
+                    with st.expander("Songs from Post", expanded=False):
+                        for i, song in enumerate(songs, 1):
+                            st.write(f"{i}. **{song['song']}** by {song['artist']}")
+                    
+                    # Blog customization options
+                    st.markdown("##### Customization Options")
+                    
+                    # Model selection
+                    model_options = {
+                        "gpt-4o": "GPT-4o (Recommended)",
+                        "gpt-4-turbo": "GPT-4 Turbo",
+                        "gpt-3.5-turbo": "GPT-3.5 Turbo (Faster)"
+                    }
+                    
+                    model = st.selectbox(
+                        "AI Model",
+                        list(model_options.keys()),
+                        format_func=lambda x: model_options[x],
+                        index=0
+                    )
+                    
+                    # Temperature slider
+                    temperature = st.slider(
+                        "Creativity Level", 
+                        min_value=0.0, 
+                        max_value=1.0, 
+                        value=0.7, 
+                        step=0.1,
+                        help="Higher values make output more creative but less predictable"
+                    )
+                    
+                    # Blog style options
+                    st.markdown("##### Blog Style Options")
+                    
+                    # Tone with dropdown and custom
+                    tone_options = ["Professional", "Conversational", "Elegant", "Enthusiastic", "Inspirational", "Custom"]
+                    
+                    # Get index from session state
+                    tone_index = 0
+                    if st.session_state.revamp_tone in tone_options:
+                        tone_index = tone_options.index(st.session_state.revamp_tone)
+                        
+                    tone_selection = st.selectbox(
+                        "Tone of Voice",
+                        tone_options,
+                        index=tone_index,
+                        key="tone_selectbox"
+                    )
+                    
+                    # Custom tone input
+                    if tone_selection == "Custom":
+                        custom_tone = st.text_input(
+                            "Custom Tone Description",
+                            placeholder="e.g., 'Inspirational with a touch of humor'",
+                            key="custom_tone_input"
+                        )
+                        tone = custom_tone if custom_tone else "Professional"
+                    else:
+                        tone = tone_selection
+                    
+                    # Save tone to session state
+                    st.session_state.revamp_tone = tone
+                    
+                    # Section count with dropdown and custom
+                    section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
+                    
+                    # Get index from session state
+                    section_index = 0
+                    if st.session_state.revamp_section_count in section_count_options:
+                        section_index = section_count_options.index(st.session_state.revamp_section_count)
+                    
+                    section_count_selection = st.selectbox(
+                        "Content Sections",
+                        section_count_options,
+                        index=section_index,
+                        key="section_count_selectbox"
+                    )
+                    
+                    # Save to session state
+                    st.session_state.revamp_section_count = section_count_selection
+                    
+                    if section_count_selection == "Custom":
+                        section_count = st.number_input("Number of content sections", min_value=2, max_value=6, value=4)
+                    else:
+                        # Parse the selection to get the actual number
+                        if section_count_selection == "Default (3-4)":
+                            section_count = 4
+                        elif section_count_selection == "Minimal (2-3)":
+                            section_count = 3
+                        elif section_count_selection == "Comprehensive (4-5)":
+                            section_count = 5
+                        elif section_count_selection == "Detailed (5-6)":
+                            section_count = 6
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Initialize mood in session state if not present
+                        mood_options = ["Elegant", "Fun", "Emotional", "Energetic", "Relaxed", "Romantic", "Custom"]
+                        
+                        # Get index from session state
+                        mood_index = 0
+                        if st.session_state.revamp_mood in mood_options:
+                            mood_index = mood_options.index(st.session_state.revamp_mood)
+                        
+                        mood_selection = st.selectbox(
+                            "Overall Mood",
+                            mood_options,
+                            index=mood_index,
+                            key="mood_selectbox"
+                        )
+                        
+                        # Custom mood input
+                        if mood_selection == "Custom":
+                            custom_mood = st.text_input(
+                                "Custom Mood Description",
+                                placeholder="e.g., 'Rustic with a touch of elegance'",
+                                key="custom_mood_input"
+                            )
+                            mood = custom_mood if custom_mood else "Elegant"
+                        else:
+                            mood = mood_selection
+                        
+                        # Save mood to session state
+                        st.session_state.revamp_mood = mood
+                        
+                        # Introduction theme options
+                        intro_options = ["Standard Welcome", "Personal Story", "Setting the Scene", "Wedding Journey", "Custom"]
+                        
+                        # Get index from session state
+                        intro_index = 0
+                        if st.session_state.revamp_intro_theme in intro_options:
+                            intro_index = intro_options.index(st.session_state.revamp_intro_theme)
+                        
+                        intro_selection = st.selectbox(
+                            "Introduction Theme",
+                            intro_options,
+                            index=intro_index,
+                            key="intro_selectbox"
+                        )
+                        
+                        # Custom intro input
+                        if intro_selection == "Custom":
+                            custom_intro = st.text_input(
+                                "Custom Introduction Theme",
+                                placeholder="e.g., 'Start with a quote about music'",
+                                key="custom_intro_input"
+                            )
+                            intro_theme = custom_intro if custom_intro else "Standard Welcome"
+                        else:
+                            intro_theme = intro_selection
+                        
+                        # Save intro theme to session state
+                        st.session_state.revamp_intro_theme = intro_theme
+                    
+                    with col2:
+                        # Audience focus options
+                        audience_options = ["Couples", "Brides", "Modern Couples", "Traditional", "Diverse", "Custom"]
+                        
+                        # Get index from session state
+                        audience_index = 0
+                        if st.session_state.revamp_audience in audience_options:
+                            audience_index = audience_options.index(st.session_state.revamp_audience)
+                        
+                        audience_selection = st.selectbox(
+                            "Target Audience",
+                            audience_options,
+                            index=audience_index,
+                            key="audience_selectbox"
+                        )
+                        
+                        # Custom audience input
+                        if audience_selection == "Custom":
+                            custom_audience = st.text_input(
+                                "Custom Audience Description",
+                                placeholder="e.g., 'LGBTQ+ couples looking for inclusive options'",
+                                key="custom_audience_input"
+                            )
+                            audience = custom_audience if custom_audience else "Couples"
+                        else:
+                            audience = audience_selection
+                        
+                        # Save audience to session state
+                        st.session_state.revamp_audience = audience
+                        
+                        # Title style options
+                        title_options = ["Descriptive", "Short", "Playful", "Elegant", "Question-based", "Custom"]
+                        
+                        # Get index from session state
+                        title_index = 0
+                        if st.session_state.revamp_title_style in title_options:
+                            title_index = title_options.index(st.session_state.revamp_title_style)
+                        
+                        title_selection = st.selectbox(
+                            "Section Title Style",
+                            title_options,
+                            index=title_index,
+                            key="title_selectbox"
+                        )
+                        
+                        # Custom title style input
+                        if title_selection == "Custom":
+                            custom_title = st.text_input(
+                                "Custom Title Style",
+                                placeholder="e.g., 'Use music-themed puns in titles'",
+                                key="custom_title_input"
+                            )
+                            title_style = custom_title if custom_title else "Descriptive"
+                        else:
+                            title_style = title_selection
+                        
+                        # Save title style to session state
+                        st.session_state.revamp_title_style = title_style
+                        
+                        # Conclusion theme options
+                        conclusion_options = ["Invitation to Connect", "Call to Action", "Personal Recommendation", "Future Vision", "Custom"]
+                        
+                        # Get index from session state
+                        conclusion_index = 0
+                        if st.session_state.revamp_conclusion_theme in conclusion_options:
+                            conclusion_index = conclusion_options.index(st.session_state.revamp_conclusion_theme)
+                        
+                        conclusion_selection = st.selectbox(
+                            "Conclusion Theme",
+                            conclusion_options,
+                            index=conclusion_index,
+                            key="conclusion_selectbox"
+                        )
+                        
+                        # Custom conclusion input
+                        if conclusion_selection == "Custom":
+                            custom_conclusion = st.text_input(
+                                "Custom Conclusion Theme",
+                                placeholder="e.g., 'End with a toast to the couple'",
+                                key="custom_conclusion_input"
+                            )
+                            conclusion_theme = custom_conclusion if custom_conclusion else "Invitation to Connect"
+                        else:
+                            conclusion_theme = conclusion_selection
+                        
+                        # Save conclusion theme to session state
+                        st.session_state.revamp_conclusion_theme = conclusion_theme
+                    
+                    # Create style options dictionary
+                    style_options = {
+                        "tone": tone,
+                        "section_count": section_count,
+                        "mood": mood,
+                        "intro_theme": intro_theme,
+                        "conclusion_theme": conclusion_theme,
+                        "title_style": title_style,
+                        "audience": audience,
+                        "model": model,
+                        "temperature": temperature
+                    }
+                    
+                    # Generate button
+                    if st.button("🔄 Revamp Blog Post", key="revamp_button"):
+                        with st.spinner("🪄 AI is revamping your blog post..."):
+                            post_title = st.session_state.selected_post['title']['rendered']
+                            post_content = st.session_state.selected_post['content']['rendered']
+                            
+                            try:
+                                revamped_content = revamp_existing_blog(
+                                    post_content=post_content,
+                                    post_title=post_title,
+                                    youtube_api=youtube_api,
+                                    style_options=style_options
+                                )
+                                
+                                # Show the revamped content
+                                st.success("✅ Blog post revamped successfully!")
+                                
+                                st.markdown("##### Revamped Blog Post")
+                                
+                                # Display the revamped content
+                                with st.expander("Show Revamped Content", expanded=True):
+                                    st.markdown(revamped_content, unsafe_allow_html=True)
+                                
+                                # Save the revamped blog post
+                                save_blog_post(
+                                    playlist_name=f"Revamped - {post_title}",
+                                    blog_content=revamped_content,
+                                    title=post_title
+                                )
+                                
+                                # Add WordPress posting option
+                                if st.button("🚀 Post Revamped Version to WordPress", key="post_revamped_button"):
+                                    with st.spinner("📝 Creating draft post in WordPress..."):
+                                        try:
+                                            # Post to WordPress as draft
+                                            result = wordpress_api.create_post(
+                                                title=f"{post_title} (Revamped)",
+                                                content=revamped_content,
+                                                status="draft"
+                                            )
+                                            
+                                            if result.get('success'):
+                                                post_id = result.get('post_id')
+                                                edit_url = result.get('edit_url')
+                                                
+                                                st.success(f"✅ Draft post created! ID: {post_id}")
+                                                st.write(f"View/Edit: {edit_url}")
+                                            else:
+                                                error_msg = result.get('error', 'Unknown error')
+                                                st.error(f"❌ Failed to create post: {error_msg}")
+                                        except Exception as e:
+                                            st.error(f"❌ Error posting to WordPress: {str(e)}")
+                            except Exception as e:
+                                st.error(f"❌ Error revamping blog post: {str(e)}")
+                                st.write("Exception details:", str(e))
+                                st.write("Traceback:", traceback.format_exc())
+        else:
+            st.warning("⚠️ WordPress API connection required")
+            st.info("To use this feature, please add your WordPress API details to the environment secrets")
 
 if __name__ == "__main__":
     import re  # Import at the top
