@@ -1392,45 +1392,68 @@ def main():
                 with col2:
                     load_post_button = st.button("📄 Load Post", key="load_post")
                 
-                # Only proceed if load button is clicked
-                if load_post_button and selected_post_title:
-                    selected_post_id = post_options[selected_post_title]
+                # Store selected post in session state regardless of button click
+                if selected_post_title:
+                    # Save selection to session state
+                    st.session_state.selected_post_title = selected_post_title
+                    st.session_state.selected_post_id = post_options[selected_post_title]
+                
+                # Use session state to maintain selection
+                if 'selected_post_title' not in st.session_state:
+                    st.session_state.selected_post_title = None
+                    st.session_state.selected_post_id = None
+                
+                # Only proceed if load button is clicked OR we already have a post loaded
+                if (load_post_button and selected_post_title) or ('current_post' in st.session_state and st.session_state.current_post):
+                    # Get post ID from appropriate source
+                    if load_post_button and selected_post_title:
+                        selected_post_id = post_options[selected_post_title]
+                    else:
+                        selected_post_id = st.session_state.selected_post_id
                     
-                    # Fetch the post content and store it
-                    with st.spinner("Loading post content..."):
-                        try:
-                            post = wordpress_api.get_post(selected_post_id)
-                            if post:
-                                # Store in session state
-                                st.session_state['current_post'] = post
+                    # Use post from session state if available, otherwise fetch it
+                    if 'current_post' in st.session_state and st.session_state.current_post:
+                        post = st.session_state.current_post
+                    elif load_post_button and selected_post_id:
+                        # Fetch the post content and store it
+                        with st.spinner("Loading post content..."):
+                            try:
+                                post = wordpress_api.get_post(selected_post_id)
+                                if post:
+                                    # Store in session state
+                                    st.session_state.current_post = post
+                            except Exception as e:
+                                st.error(f"Error fetching post: {str(e)}")
+                                post = None
                                 
-                                # Show post preview
-                                st.write("### Original Post Content")
-                                with st.expander("View Original HTML Content", expanded=False):
-                                    st.code(post['content'], language="html")
-                                
-                                # Show rendered preview
-                                st.write("### Original Post Preview")
-                                st.markdown(post['content'], unsafe_allow_html=True)
-                                
-                                # Blog style customization options - matching the original blog generator options
-                                st.write("### Revamp Style Options")
-                                
-                                # Initialize model in session state if not present
-                                if 'revamp_model' not in st.session_state:
-                                    st.session_state.revamp_model = "gpt-4o"
-                                
-                                if 'revamp_temperature' not in st.session_state:
-                                    st.session_state.revamp_temperature = 0.7
-                                
-                                # Model selection with session state
-                                model = st.selectbox(
-                                    "AI Model",
-                                    ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-                                    index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].index(st.session_state.revamp_model),
-                                    help="Select which OpenAI model to use for content generation",
-                                    key="model_selectbox"
-                                )
+                    # Now check if we have a valid post to display
+                    if 'post' in locals() and post:
+                        # Show post preview
+                        st.write("### Original Post Content")
+                        with st.expander("View Original HTML Content", expanded=False):
+                            st.code(post['content'], language="html")
+                        
+                        # Show rendered preview
+                        st.write("### Original Post Preview")
+                        st.markdown(post['content'], unsafe_allow_html=True)
+                        
+                        # Blog style customization options - matching the original blog generator options
+                        st.write("### Revamp Style Options")
+                        
+                        # Initialize model in session state if not present
+                        if 'revamp_model' not in st.session_state:
+                            st.session_state.revamp_model = "gpt-4o"
+                        
+                        if 'revamp_temperature' not in st.session_state:
+                            st.session_state.revamp_temperature = 0.7
+                        # Model selection with session state
+                        model = st.selectbox(
+                            "AI Model",
+                            ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+                            index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].index(st.session_state.revamp_model),
+                            help="Select which OpenAI model to use for content generation",
+                            key="model_selectbox"
+                        )
                                 
                                 # Update session state when model changes
                                 st.session_state.revamp_model = model
