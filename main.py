@@ -1611,59 +1611,62 @@ def main():
                             st.error(f"Error fetching post: {str(e)}")
                     
                 # Display revamped content at the bottom of the page (outside other containers) to ensure it stays visible
-                if 'revamped_content' in st.session_state and 'revamp_post_id' in st.session_state:
-                    st.markdown("---")
-                    st.markdown("## Revamped Post Results")
-                    
-                    # Show revamped preview
-                    st.subheader("Revamped Post Preview")
-                    st.markdown(st.session_state.revamped_content, unsafe_allow_html=True)
-                    
-                    # Editing options
-                    st.subheader("Edit Revamped Content")
-                    edited_content = st.text_area(
-                        "HTML Content (you can edit this)",
-                        value=st.session_state.revamped_content,
-                        height=400
-                    )
-                    
-                    # Action buttons in columns
-                    action_col1, action_col2 = st.columns(2)
-                    
-                    with action_col1:
-                        if st.button("📝 Create as New Draft", key="create_draft"):
-                            with st.spinner("Creating new draft post..."):
-                                try:
-                                    # Create new draft
-                                    title = f"Revamped: {st.session_state.revamp_post_title}"
-                                    result = wordpress_api.create_post(
-                                        title=title,
-                                        content=edited_content,
-                                        status="draft",
-                                        categories=st.session_state.revamp_post_categories
-                                    )
-                                    
-                                    if result and result.get('success'):
-                                        st.success("✅ New draft post created successfully!")
-                                        st.write(f"Edit URL: {result.get('edit_url', '')}")
-                                    else:
-                                        st.error(f"Error creating draft: {result.get('error', 'Unknown error')}")
-                                except Exception as e:
-                                    st.error(f"Error creating draft: {str(e)}")
-                    
-                    with action_col2:
-                        if st.button("💾 Save Locally", key="save_locally"):
-                            with st.spinner("Saving blog post locally..."):
-                                try:
-                                    filename = f"revamped_{st.session_state.revamp_post_id}"
-                                    save_blog_post(
-                                        filename, 
-                                        edited_content, 
-                                        f"Revamped: {st.session_state.revamp_post_title}"
-                                    )
-                                    st.success(f"✅ Revamped post saved successfully!")
-                                except Exception as e:
-                                    st.error(f"Error saving post: {str(e)}")
+                with st.container():
+                    if 'revamped_content' in st.session_state and 'revamp_post_id' in st.session_state:
+                        st.markdown("---")
+                        st.markdown("## Revamped Post Results")
+                        
+                        # Show revamped preview in a dedicated container
+                        preview_container = st.container()
+                        with preview_container:
+                            st.subheader("Revamped Post Preview")
+                            st.markdown(st.session_state.revamped_content, unsafe_allow_html=True)
+                        
+                        # Editing options in an expander to save space
+                        with st.expander("Edit Revamped Content", expanded=True):
+                            edited_content = st.text_area(
+                                "HTML Content (you can edit this)",
+                                value=st.session_state.revamped_content,
+                                height=400
+                            )
+                            
+                            # Action buttons in columns
+                            action_col1, action_col2 = st.columns(2)
+                            
+                            with action_col1:
+                                if st.button("📝 Create as New Draft", key="create_draft"):
+                                    with st.spinner("Creating new draft post..."):
+                                        try:
+                                            # Create new draft
+                                            title = f"Revamped: {st.session_state.revamp_post_title}"
+                                            result = wordpress_api.create_post(
+                                                title=title,
+                                                content=edited_content,
+                                                status="draft",
+                                                categories=st.session_state.revamp_post_categories
+                                            )
+                                            
+                                            if result and result.get('success'):
+                                                st.success("✅ New draft post created successfully!")
+                                                st.write(f"Edit URL: {result.get('edit_url', '')}")
+                                            else:
+                                                st.error(f"Error creating draft: {result.get('error', 'Unknown error')}")
+                                        except Exception as e:
+                                            st.error(f"Error creating draft: {str(e)}")
+                            
+                            with action_col2:
+                                if st.button("💾 Save Locally", key="save_locally"):
+                                    with st.spinner("Saving blog post locally..."):
+                                        try:
+                                            filename = f"revamped_{st.session_state.revamp_post_id}"
+                                            save_blog_post(
+                                                filename, 
+                                                edited_content, 
+                                                f"Revamped: {st.session_state.revamp_post_title}"
+                                            )
+                                            st.success(f"✅ Revamped post saved successfully!")
+                                        except Exception as e:
+                                            st.error(f"Error saving post: {str(e)}")
             else:
                 st.info("Search for posts to begin revamping content.")
 
