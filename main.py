@@ -1295,12 +1295,12 @@ def main():
             
     # Tab 4: Revamp Existing WordPress Posts
     with tab4:
-        st.subheader("Revamp Existing WordPress Posts")
+        st.markdown("## Revamp Existing WordPress Posts")
+        st.markdown("This feature allows you to revamp existing blog posts from your WordPress site.")
         
-        # Only show if WordPress API is properly initialized
-        if wordpress_api is None:
-            st.error("WordPress API not configured. Please set up the WordPress API credentials in your environment variables.")
-            st.info("Required: WORDPRESS_API_URL, WORDPRESS_USERNAME, WORDPRESS_PASSWORD")
+        # Check WordPress API connection
+        if wordpress_api is None or not wordpress_api_connected:
+            st.warning("WordPress API is not connected. Please check your settings in the 'Process' tab.")
         else:
             # Search options
             st.write("### Find WordPress Posts to Revamp")
@@ -1478,10 +1478,10 @@ def main():
                         if 'revamp_section_count' not in st.session_state:
                             st.session_state.revamp_section_count = "Default (3-4)"
                                 
-                                # Initialize form for revamp options
-                                with st.form(key="revamp_form"):
-                                    # Basic style options with both dropdowns and custom inputs
-                                    st.subheader("Basic Style")
+                        # Initialize form for revamp options
+                        with st.form(key="revamp_form"):
+                            # Basic style options with both dropdowns and custom inputs
+                            st.subheader("Basic Style")
                                     
                                     # Tone options with custom option and session state
                                     tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
