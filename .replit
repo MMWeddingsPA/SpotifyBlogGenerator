@@ -18,15 +18,15 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Fixed WordPress Revamp"
+args = "Playlist Blog Generator"
 
 [[workflows.workflow]]
-name = "Fixed WordPress Revamp"
+name = "Playlist Blog Generator"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "streamlit run fixed_wordpress_app.py"
+args = "streamlit run main.py"
 waitForPort = 5000
 
 [[ports]]
