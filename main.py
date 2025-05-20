@@ -1446,11 +1446,20 @@ def main():
                         
                         if 'revamp_temperature' not in st.session_state:
                             st.session_state.revamp_temperature = 0.7
-                        # Model selection with session state
+                            
+                        # Model selection with proper session state management
+                        model_options = ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]
+                        model_index = 0
+                        
+                        # Find the index of the currently selected model
+                        if st.session_state.revamp_model in model_options:
+                            model_index = model_options.index(st.session_state.revamp_model)
+                            
+                        # Create the model selection dropdown
                         model = st.selectbox(
                             "AI Model",
-                            ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-                            index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].index(st.session_state.revamp_model),
+                            model_options,
+                            index=model_index,
                             help="Select which OpenAI model to use for content generation",
                             key="model_selectbox"
                         )
@@ -1458,13 +1467,14 @@ def main():
                         # Update session state when model changes
                         st.session_state.revamp_model = model
                                 
+                        # Temperature slider with proper session state management
                         temperature = st.slider(
-                            "Creativity Level", 
-                            min_value=0.0, 
-                            max_value=1.0, 
+                            "Generation Temperature", 
+                            min_value=0.1, 
+                            max_value=1.5, 
                             value=st.session_state.revamp_temperature, 
                             step=0.1,
-                            help="Higher values make output more creative, lower values make it more predictable",
+                            help="Lower values are more predictable, higher values more creative",
                             key="temperature_slider"
                         )
                         
@@ -1478,21 +1488,23 @@ def main():
                         if 'revamp_section_count' not in st.session_state:
                             st.session_state.revamp_section_count = "Default (3-4)"
                                 
-                        # Initialize form for revamp options
+                        # Create a form for remaining style options
                         with st.form(key="revamp_form"):
-                            # Basic style options with both dropdowns and custom inputs
-                            st.subheader("Basic Style")
+                            # Basic style options
+                            st.subheader("Blog Style Options")
                             
-                            # Tone options with custom option and session state
-                            tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
-                            
-                            # Determine index based on session state
+                            # Tone options with session state
+                            if 'revamp_tone' not in st.session_state:
+                                st.session_state.revamp_tone = "Conversational"
+                                
+                            tone_options = ["Conversational", "Professional", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
                             tone_index = 0
+                            
                             if st.session_state.revamp_tone in tone_options:
                                 tone_index = tone_options.index(st.session_state.revamp_tone)
                             
                             tone = st.selectbox(
-                                "Writing Tone",
+                                "Tone",
                                 tone_options,
                                 index=tone_index,
                                 key="tone_selectbox"
