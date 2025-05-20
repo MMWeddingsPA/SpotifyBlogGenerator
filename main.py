@@ -298,11 +298,99 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                 # Clean the playlist name for the blog post (remove numeric prefix)
                 clean_name = clean_playlist_name_for_blog(playlist)
                 
+                # Blog customization options
+                with st.expander("Blog Customization Options", expanded=False):
+                    # Model selection
+                    model_options = {
+                        "gpt-4o": "GPT-4o (Recommended)",
+                        "gpt-4-turbo": "GPT-4 Turbo",
+                        "gpt-3.5-turbo": "GPT-3.5 Turbo (Faster)"
+                    }
+                    
+                    model = st.selectbox(
+                        "AI Model",
+                        list(model_options.keys()),
+                        format_func=lambda x: model_options[x],
+                        index=0,
+                        key="blog_model_selectbox"
+                    )
+                    
+                    temperature = st.slider(
+                        "Creativity Level", 
+                        min_value=0.0, 
+                        max_value=1.0, 
+                        value=0.7, 
+                        step=0.1,
+                        key="blog_temperature_slider",
+                        help="Higher values make output more creative but less predictable"
+                    )
+                    
+                    # Blog style options
+                    st.markdown("##### Blog Style Options")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        tone = st.text_input(
+                            "Blog Tone",
+                            value="conversational and warm",
+                            help="Example: playful and witty, sophisticated and elegant, etc."
+                        )
+                        
+                        mood = st.text_input(
+                            "Overall Mood",
+                            value="elegant and upbeat",
+                            help="Example: romantic, relaxed, energetic, etc."
+                        )
+                        
+                        intro_theme = st.selectbox(
+                            "Introduction Theme",
+                            ["Standard Welcome", "Personal Story", "Setting the Scene", "Wedding Journey", "Custom"],
+                            index=0,
+                            key="blog_intro_selectbox"
+                        )
+                    
+                    with col2:
+                        section_count = st.number_input(
+                            "Content Sections",
+                            min_value=2,
+                            max_value=6,
+                            value=4,
+                            help="Number of sections to organize songs into"
+                        )
+                        
+                        audience = st.selectbox(
+                            "Target Audience",
+                            ["Couples", "Brides", "Modern Couples", "Traditional", "Diverse"],
+                            index=0,
+                            key="blog_audience_selectbox"
+                        )
+                        
+                        conclusion_theme = st.selectbox(
+                            "Conclusion Theme",
+                            ["Invitation to Connect", "Call to Action", "Personal Recommendation", "Future Vision"],
+                            index=0,
+                            key="blog_conclusion_selectbox"
+                        )
+                
+                # Create style options dictionary
+                style_options = {
+                    "tone": tone if 'tone' in locals() else "conversational and warm",
+                    "section_count": section_count if 'section_count' in locals() else 4,
+                    "mood": mood if 'mood' in locals() else "elegant and upbeat",
+                    "intro_theme": intro_theme if 'intro_theme' in locals() else "Standard Welcome",
+                    "conclusion_theme": conclusion_theme if 'conclusion_theme' in locals() else "Invitation to Connect",
+                    "audience": audience if 'audience' in locals() else "Couples",
+                    "model": model if 'model' in locals() else "gpt-4o",
+                    "temperature": temperature if 'temperature' in locals() else 0.7
+                }
+                
                 # Generate the blog post
                 blog_post = generate_blog_post(
                     playlist_name=clean_name,
                     songs_df=playlist_df,
-                    spotify_link=spotify_link
+                    spotify_link=spotify_link,
+                    style_options=style_options
                 )
                 results['blog_post'] = blog_post
                 
