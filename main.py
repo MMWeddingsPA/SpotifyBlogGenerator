@@ -1408,13 +1408,8 @@ def main():
                     # Get post ID from appropriate source
                     if load_post_button and selected_post_title:
                         selected_post_id = post_options[selected_post_title]
-                    else:
-                        selected_post_id = st.session_state.selected_post_id
-                    
-                    # Use post from session state if available, otherwise fetch it
-                    if 'current_post' in st.session_state and st.session_state.current_post:
-                        post = st.session_state.current_post
-                    elif load_post_button and selected_post_id:
+                        st.session_state.selected_post_id = selected_post_id
+                        
                         # Fetch the post content and store it
                         with st.spinner("Loading post content..."):
                             try:
@@ -1422,9 +1417,14 @@ def main():
                                 if post:
                                     # Store in session state
                                     st.session_state.current_post = post
+                                    st.success(f"Post loaded: {post['title']['rendered']}")
                             except Exception as e:
                                 st.error(f"Error fetching post: {str(e)}")
                                 post = None
+                    else:
+                        # Use post from session state if already loaded
+                        if 'current_post' in st.session_state:
+                            post = st.session_state.current_post
                                 
                     # Now check if we have a valid post to display
                     if 'post' in locals() and post:
@@ -1454,29 +1454,29 @@ def main():
                             help="Select which OpenAI model to use for content generation",
                             key="model_selectbox"
                         )
+                        
+                        # Update session state when model changes
+                        st.session_state.revamp_model = model
                                 
-                                # Update session state when model changes
-                                st.session_state.revamp_model = model
+                        temperature = st.slider(
+                            "Creativity Level", 
+                            min_value=0.0, 
+                            max_value=1.0, 
+                            value=st.session_state.revamp_temperature, 
+                            step=0.1,
+                            help="Higher values make output more creative, lower values make it more predictable",
+                            key="temperature_slider"
+                        )
+                        
+                        # Update session state when temperature changes
+                        st.session_state.revamp_temperature = temperature
                                 
-                                temperature = st.slider(
-                                    "Creativity Level", 
-                                    min_value=0.0, 
-                                    max_value=1.0, 
-                                    value=st.session_state.revamp_temperature, 
-                                    step=0.1,
-                                    help="Higher values make output more creative, lower values make it more predictable",
-                                    key="temperature_slider"
-                                )
-                                
-                                # Update session state when temperature changes
-                                st.session_state.revamp_temperature = temperature
-                                
-                                # Initialize session state for form values if not present
-                                if 'revamp_tone' not in st.session_state:
-                                    st.session_state.revamp_tone = "Professional"
-                                    
-                                if 'revamp_section_count' not in st.session_state:
-                                    st.session_state.revamp_section_count = "Default (3-4)"
+                        # Initialize session state for form values if not present
+                        if 'revamp_tone' not in st.session_state:
+                            st.session_state.revamp_tone = "Professional"
+                            
+                        if 'revamp_section_count' not in st.session_state:
+                            st.session_state.revamp_section_count = "Default (3-4)"
                                 
                                 # Initialize form for revamp options
                                 with st.form(key="revamp_form"):
