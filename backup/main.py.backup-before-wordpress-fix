@@ -1513,21 +1513,21 @@ def main():
                             
                             # Save tone to session state
                             st.session_state.revamp_tone = tone
-                            
-                            # Section count with dropdown and custom
-                            section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
-                            
-                            # Get index from session state
-                            section_index = 0
-                            if st.session_state.revamp_section_count in section_count_options:
-                                section_index = section_count_options.index(st.session_state.revamp_section_count)
-                            
-                            section_count_selection = st.selectbox(
-                                "Content Sections",
-                                section_count_options,
-                                index=section_index,
-                                key="section_count_selectbox"
-                            )
+                                    
+                                    # Section count with dropdown and custom
+                                    section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
+                                    
+                                    # Get index from session state
+                                    section_index = 0
+                                    if st.session_state.revamp_section_count in section_count_options:
+                                        section_index = section_count_options.index(st.session_state.revamp_section_count)
+                                        
+                                    section_count_selection = st.selectbox(
+                                        "Content Sections",
+                                        section_count_options,
+                                        index=section_index,
+                                        key="section_count_selectbox"
+                                    )
                                     
                                     # Save to session state
                                     st.session_state.revamp_section_count = section_count_selection
