@@ -1,5 +1,3 @@
-# Only include theme settings for cloud deployment
-# Do NOT include server settings like port or address
 [theme]
 base = "light"
 primaryColor = "#D4AF37"
