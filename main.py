@@ -84,24 +84,6 @@ if 'last_saved_csv' not in st.session_state:
 if 'auto_loaded' not in st.session_state:
     st.session_state.auto_loaded = False
     
-# Initialize WordPress revamp session state variables
-if 'wordpress_posts' not in st.session_state:
-    st.session_state.wordpress_posts = []
-if 'selected_post_id' not in st.session_state:
-    st.session_state.selected_post_id = None
-if 'selected_post_title' not in st.session_state:
-    st.session_state.selected_post_title = None
-if 'current_post' not in st.session_state:
-    st.session_state.current_post = None
-if 'revamp_model' not in st.session_state:
-    st.session_state.revamp_model = "gpt-4o"
-if 'revamp_temperature' not in st.session_state:
-    st.session_state.revamp_temperature = 0.7
-if 'revamp_tone' not in st.session_state:
-    st.session_state.revamp_tone = "Professional"
-if 'revamp_section_count' not in st.session_state:
-    st.session_state.revamp_section_count = "Default (3-4)"
-    
 # Functions for file management
 def find_all_csv_files():
     """Find all available CSV files from previous sessions"""
@@ -1515,22 +1497,22 @@ def main():
                                 index=tone_index,
                                 key="tone_selectbox"
                             )
-                            
-                            if tone == "Custom":
-                                custom_tone_default = ""
-                                if not st.session_state.revamp_tone in tone_options:
-                                    custom_tone_default = st.session_state.revamp_tone
                                     
-                                custom_tone = st.text_input(
-                                    "Custom tone", 
-                                    value=custom_tone_default,
-                                    placeholder="e.g., 'Inspirational with a touch of humor'",
-                                    key="custom_tone_input"
-                                )
-                                tone = custom_tone if custom_tone else "Professional"
-                            
-                            # Save tone to session state
-                            st.session_state.revamp_tone = tone
+                                    if tone == "Custom":
+                                        custom_tone_default = ""
+                                        if not st.session_state.revamp_tone in tone_options:
+                                            custom_tone_default = st.session_state.revamp_tone
+                                            
+                                        custom_tone = st.text_input(
+                                            "Custom tone", 
+                                            value=custom_tone_default,
+                                            placeholder="e.g., 'Inspirational with a touch of humor'",
+                                            key="custom_tone_input"
+                                        )
+                                        tone = custom_tone if custom_tone else "Professional"
+                                    
+                                    # Save tone to session state
+                                    st.session_state.revamp_tone = tone
                                     
                                     # Section count with dropdown and custom
                                     section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
