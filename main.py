@@ -1416,48 +1416,98 @@ def main():
                                 # Blog style customization options - matching the original blog generator options
                                 st.write("### Revamp Style Options")
                                 
-                                # Model selection
+                                # Initialize model in session state if not present
+                                if 'revamp_model' not in st.session_state:
+                                    st.session_state.revamp_model = "gpt-4o"
+                                
+                                if 'revamp_temperature' not in st.session_state:
+                                    st.session_state.revamp_temperature = 0.7
+                                
+                                # Model selection with session state
                                 model = st.selectbox(
                                     "AI Model",
                                     ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-                                    index=0,
-                                    help="Select which OpenAI model to use for content generation"
+                                    index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].index(st.session_state.revamp_model),
+                                    help="Select which OpenAI model to use for content generation",
+                                    key="model_selectbox"
                                 )
+                                
+                                # Update session state when model changes
+                                st.session_state.revamp_model = model
                                 
                                 temperature = st.slider(
                                     "Creativity Level", 
                                     min_value=0.0, 
                                     max_value=1.0, 
-                                    value=0.7, 
+                                    value=st.session_state.revamp_temperature, 
                                     step=0.1,
-                                    help="Higher values make output more creative, lower values make it more predictable"
+                                    help="Higher values make output more creative, lower values make it more predictable",
+                                    key="temperature_slider"
                                 )
+                                
+                                # Update session state when temperature changes
+                                st.session_state.revamp_temperature = temperature
+                                
+                                # Initialize session state for form values if not present
+                                if 'revamp_tone' not in st.session_state:
+                                    st.session_state.revamp_tone = "Professional"
+                                    
+                                if 'revamp_section_count' not in st.session_state:
+                                    st.session_state.revamp_section_count = "Default (3-4)"
                                 
                                 # Initialize form for revamp options
                                 with st.form(key="revamp_form"):
                                     # Basic style options with both dropdowns and custom inputs
                                     st.subheader("Basic Style")
                                     
-                                    # Tone options with custom option
+                                    # Tone options with custom option and session state
                                     tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
+                                    
+                                    # Determine index based on session state
+                                    tone_index = 0
+                                    if st.session_state.revamp_tone in tone_options:
+                                        tone_index = tone_options.index(st.session_state.revamp_tone)
+                                    
                                     tone = st.selectbox(
                                         "Writing Tone",
                                         tone_options,
-                                        index=0
+                                        index=tone_index,
+                                        key="tone_selectbox"
                                     )
                                     
                                     if tone == "Custom":
-                                        custom_tone = st.text_input("Custom tone", 
-                                            placeholder="e.g., 'Inspirational with a touch of humor'")
+                                        custom_tone_default = ""
+                                        if not st.session_state.revamp_tone in tone_options:
+                                            custom_tone_default = st.session_state.revamp_tone
+                                            
+                                        custom_tone = st.text_input(
+                                            "Custom tone", 
+                                            value=custom_tone_default,
+                                            placeholder="e.g., 'Inspirational with a touch of humor'",
+                                            key="custom_tone_input"
+                                        )
                                         tone = custom_tone if custom_tone else "Professional"
+                                    
+                                    # Save tone to session state
+                                    st.session_state.revamp_tone = tone
                                     
                                     # Section count with dropdown and custom
                                     section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
+                                    
+                                    # Get index from session state
+                                    section_index = 0
+                                    if st.session_state.revamp_section_count in section_count_options:
+                                        section_index = section_count_options.index(st.session_state.revamp_section_count)
+                                        
                                     section_count_selection = st.selectbox(
                                         "Content Sections",
                                         section_count_options,
-                                        index=0
+                                        index=section_index,
+                                        key="section_count_selectbox"
                                     )
+                                    
+                                    # Save to session state
+                                    st.session_state.revamp_section_count = section_count_selection
                                     
                                     if section_count_selection == "Custom":
                                         section_count = st.number_input("Number of content sections", min_value=2, max_value=6, value=4)
@@ -1475,78 +1525,195 @@ def main():
                                     col1, col2 = st.columns(2)
                                     
                                     with col1:
-                                        # Mood options with custom
+                                        # Initialize mood in session state if not present
+                                        if 'revamp_mood' not in st.session_state:
+                                            st.session_state.revamp_mood = "Elegant"
+                                            
+                                        if 'revamp_intro_theme' not in st.session_state:
+                                            st.session_state.revamp_intro_theme = "Standard Welcome"
+                                            
+                                        # Mood options with custom and session state
                                         mood_options = ["Elegant", "Fun", "Emotional", "Energetic", "Romantic", "Sophisticated", "Custom"]
+                                        
+                                        # Determine index based on session state
+                                        mood_index = 0
+                                        if st.session_state.revamp_mood in mood_options:
+                                            mood_index = mood_options.index(st.session_state.revamp_mood)
+                                            
                                         mood = st.selectbox(
                                             "Overall Mood",
                                             mood_options,
-                                            index=0
+                                            index=mood_index,
+                                            key="mood_selectbox"
                                         )
                                         
                                         if mood == "Custom":
-                                            custom_mood = st.text_input("Custom mood", 
-                                                placeholder="e.g., 'Intimate and heartfelt'")
+                                            custom_mood_default = ""
+                                            if not st.session_state.revamp_mood in mood_options:
+                                                custom_mood_default = st.session_state.revamp_mood
+                                                
+                                            custom_mood = st.text_input(
+                                                "Custom mood", 
+                                                value=custom_mood_default,
+                                                placeholder="e.g., 'Intimate and heartfelt'",
+                                                key="custom_mood_input"
+                                            )
                                             mood = custom_mood if custom_mood else "Elegant"
                                         
-                                        # Introduction theme
+                                        # Save to session state
+                                        st.session_state.revamp_mood = mood
+                                        
+                                        # Introduction theme with session state
                                         intro_theme_options = ["Standard Welcome", "Personal Story", "Setting the Scene", "Custom"]
+                                        
+                                        # Determine index based on session state
+                                        intro_theme_index = 0
+                                        if st.session_state.revamp_intro_theme in intro_theme_options:
+                                            intro_theme_index = intro_theme_options.index(st.session_state.revamp_intro_theme)
+                                            
                                         intro_theme = st.selectbox(
                                             "Introduction Theme",
                                             intro_theme_options,
-                                            index=0
+                                            index=intro_theme_index,
+                                            key="intro_theme_selectbox"
                                         )
                                         
                                         if intro_theme == "Custom":
-                                            custom_intro = st.text_input("Custom introduction theme", 
-                                                placeholder="e.g., 'Begin with a quote about music and love'")
+                                            custom_intro_default = ""
+                                            if not st.session_state.revamp_intro_theme in intro_theme_options:
+                                                custom_intro_default = st.session_state.revamp_intro_theme
+                                                
+                                            custom_intro = st.text_input(
+                                                "Custom introduction theme", 
+                                                value=custom_intro_default,
+                                                placeholder="e.g., 'Begin with a quote about music and love'",
+                                                key="custom_intro_input"
+                                            )
                                             intro_theme = custom_intro if custom_intro else "Standard Welcome"
+                                            
+                                        # Save to session state
+                                        st.session_state.revamp_intro_theme = intro_theme
                                     
                                     with col2:
-                                        # Audience options with custom
+                                        # Initialize more session state variables
+                                        if 'revamp_audience' not in st.session_state:
+                                            st.session_state.revamp_audience = "Modern Couples"
+                                            
+                                        if 'revamp_conclusion' not in st.session_state:
+                                            st.session_state.revamp_conclusion = "Standard Closing"
+                                            
+                                        # Audience options with custom and session state
                                         audience_options = ["Modern Couples", "Traditional Couples", "Brides", "Grooms", "Wedding Planners", "Custom"]
+                                        
+                                        # Get index from session state
+                                        audience_index = 0
+                                        if st.session_state.revamp_audience in audience_options:
+                                            audience_index = audience_options.index(st.session_state.revamp_audience)
+                                            
                                         audience = st.selectbox(
                                             "Target Audience",
                                             audience_options,
-                                            index=0
+                                            index=audience_index,
+                                            key="audience_selectbox"
                                         )
                                         
                                         if audience == "Custom":
-                                            custom_audience = st.text_input("Custom audience", 
-                                                placeholder="e.g., 'Music-loving couples'")
+                                            custom_audience_default = ""
+                                            if not st.session_state.revamp_audience in audience_options:
+                                                custom_audience_default = st.session_state.revamp_audience
+                                                
+                                            custom_audience = st.text_input(
+                                                "Custom audience", 
+                                                value=custom_audience_default,
+                                                placeholder="e.g., 'Music-loving couples'",
+                                                key="custom_audience_input"
+                                            )
                                             audience = custom_audience if custom_audience else "Modern Couples"
+                                            
+                                        # Save to session state
+                                        st.session_state.revamp_audience = audience
                                         
-                                        # Conclusion theme
+                                        # Conclusion theme with session state
                                         conclusion_options = ["Standard Closing", "Call to Action", "Personal Touch", "Custom"]
+                                        
+                                        # Get index from session state
+                                        conclusion_index = 0
+                                        if st.session_state.revamp_conclusion in conclusion_options:
+                                            conclusion_index = conclusion_options.index(st.session_state.revamp_conclusion)
+                                            
                                         conclusion_theme = st.selectbox(
                                             "Conclusion Theme",
                                             conclusion_options,
-                                            index=0
+                                            index=conclusion_index,
+                                            key="conclusion_selectbox"
                                         )
                                         
                                         if conclusion_theme == "Custom":
-                                            custom_conclusion = st.text_input("Custom conclusion theme", 
-                                                placeholder="e.g., 'End with planning tips'")
+                                            custom_conclusion_default = ""
+                                            if not st.session_state.revamp_conclusion in conclusion_options:
+                                                custom_conclusion_default = st.session_state.revamp_conclusion
+                                                
+                                            custom_conclusion = st.text_input(
+                                                "Custom conclusion theme", 
+                                                value=custom_conclusion_default,
+                                                placeholder="e.g., 'End with planning tips'",
+                                                key="custom_conclusion_input"
+                                            )
                                             conclusion_theme = custom_conclusion if custom_conclusion else "Standard Closing"
+                                            
+                                        # Save to session state
+                                        st.session_state.revamp_conclusion = conclusion_theme
                                     
-                                    # Advanced options
+                                    # Advanced options with session state
                                     with st.expander("Advanced Customization"):
+                                        # Initialize title style in session state if not present
+                                        if 'revamp_title_style' not in st.session_state:
+                                            st.session_state.revamp_title_style = "Descriptive"
+                                            
+                                        if 'revamp_custom_guidance' not in st.session_state:
+                                            st.session_state.revamp_custom_guidance = ""
+                                            
                                         title_style_options = ["Descriptive", "Short", "Playful", "Elegant", "Question", "Custom"]
+                                        
+                                        # Get index from session state
+                                        title_index = 0
+                                        if st.session_state.revamp_title_style in title_style_options:
+                                            title_index = title_style_options.index(st.session_state.revamp_title_style)
+                                            
                                         title_style = st.selectbox(
                                             "Section Title Style",
                                             title_style_options,
-                                            index=0
+                                            index=title_index,
+                                            key="title_style_selectbox"
                                         )
                                         
                                         if title_style == "Custom":
-                                            custom_title = st.text_input("Custom title style", 
-                                                placeholder="e.g., 'Alliterative and punchy'")
+                                            custom_title_default = ""
+                                            if not st.session_state.revamp_title_style in title_style_options:
+                                                custom_title_default = st.session_state.revamp_title_style
+                                                
+                                            custom_title = st.text_input(
+                                                "Custom title style", 
+                                                value=custom_title_default,
+                                                placeholder="e.g., 'Alliterative and punchy'",
+                                                key="custom_title_input"
+                                            )
                                             title_style = custom_title if custom_title else "Descriptive"
+                                            
+                                        # Save to session state
+                                        st.session_state.revamp_title_style = title_style
                                         
+                                        # Custom guidance with session state
                                         custom_guidance = st.text_area(
                                             "Custom Writing Guidance", 
+                                            value=st.session_state.revamp_custom_guidance,
                                             placeholder="Add any specific instructions or guidance for the blog post generation...",
-                                            height=100
+                                            height=100,
+                                            key="custom_guidance_textarea"
                                         )
+                                        
+                                        # Save to session state
+                                        st.session_state.revamp_custom_guidance = custom_guidance
                                     
                                     # Submit button for the form
                                     revamp_button = st.form_submit_button("✨ Revamp This Post")
