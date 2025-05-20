@@ -6,7 +6,7 @@ from datetime import datetime
 import traceback
 from utils.fixed_youtube_api import YouTubeAPI
 from utils.spotify_api import SpotifyAPI
-from utils.openai_api import generate_blog_post
+from utils.openai_api import generate_blog_post, revamp_existing_blog, extract_songs_from_html, extract_spotify_link
 from utils.fixed_wordpress_api import WordPressAPI
 from utils.corrected_csv_handler import load_csv, save_csv, create_empty_playlist_df
 
@@ -72,6 +72,26 @@ if 'last_saved_csv' not in st.session_state:
     st.session_state.last_saved_csv = None
 if 'auto_loaded' not in st.session_state:
     st.session_state.auto_loaded = False
+    
+# WordPress revamp session state
+if 'selected_post' not in st.session_state:
+    st.session_state.selected_post = None
+if 'wordpress_posts' not in st.session_state:
+    st.session_state.wordpress_posts = None
+if 'revamp_tone' not in st.session_state:
+    st.session_state.revamp_tone = "Professional"
+if 'revamp_section_count' not in st.session_state:
+    st.session_state.revamp_section_count = "Default (3-4)"
+if 'revamp_mood' not in st.session_state:
+    st.session_state.revamp_mood = "Elegant"
+if 'revamp_intro_theme' not in st.session_state:
+    st.session_state.revamp_intro_theme = "Standard Welcome"
+if 'revamp_conclusion_theme' not in st.session_state:
+    st.session_state.revamp_conclusion_theme = "Invitation to Connect"
+if 'revamp_title_style' not in st.session_state:
+    st.session_state.revamp_title_style = "Descriptive"
+if 'revamp_audience' not in st.session_state:
+    st.session_state.revamp_audience = "Couples"
     
 # Functions for file management
 def find_latest_csv():
@@ -159,8 +179,17 @@ def clean_playlist_name_for_blog(playlist_name):
     cleaned = re.sub(r'^\d{3}\s+', '', playlist_name)
     return cleaned
 
-def process_playlist(playlist, youtube_api, spotify_api, operations):
-    """Process a single playlist with error handling and progress tracking"""
+def process_playlist(playlist, youtube_api, spotify_api, operations, style_options=None):
+    """
+    Process a single playlist with error handling and progress tracking
+    
+    Parameters:
+    - playlist: Name of the playlist to process
+    - youtube_api: YouTube API client instance
+    - spotify_api: Spotify API client instance
+    - operations: List of operations to perform ('YouTube', 'Spotify', 'Blog')
+    - style_options: Optional dictionary of style options for blog generation
+    """
     try:
         # Filter dataframe to get only the songs for this playlist
         playlist_df = st.session_state.df[st.session_state.df['Playlist'] == playlist].copy()
@@ -280,11 +309,12 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                 # Clean the playlist name for the blog post (remove numeric prefix)
                 clean_name = clean_playlist_name_for_blog(playlist)
                 
-                # Generate the blog post
+                # Generate the blog post with style options if provided
                 blog_post = generate_blog_post(
                     playlist_name=clean_name,
                     songs_df=playlist_df,
-                    spotify_link=spotify_link
+                    spotify_link=spotify_link,
+                    style_options=style_options
                 )
                 results['blog_post'] = blog_post
                 
@@ -459,7 +489,7 @@ def main():
             st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables")
     
     # Create tabs for different functions
-    tab1, tab2, tab3 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts", "Revamp WordPress Posts"])
     
     # Auto-load the latest CSV if available
     if st.session_state.df is None:
