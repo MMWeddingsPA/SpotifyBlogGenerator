@@ -1293,7 +1293,7 @@ def main():
         else:
             st.info("No saved blog posts found. Generate some blog posts first!")
             
-    # Tab 4: Revamp Existing WordPress Posts - Fixed version
+    # Tab 4: Revamp Existing WordPress Posts
     with tab4:
         st.markdown("## Revamp Existing WordPress Posts")
         st.markdown("This feature allows you to revamp existing blog posts from your WordPress site.")
@@ -1437,31 +1437,34 @@ def main():
                         st.write("### Original Post Preview")
                         st.markdown(post['content'], unsafe_allow_html=True)
                         
-                        # Blog style customization options
+                        # Blog style customization options - matching the original blog generator options
                         st.write("### Revamp Style Options")
                         
                         # Initialize model in session state if not present
                         if 'revamp_model' not in st.session_state:
                             st.session_state.revamp_model = "gpt-4o"
                         
-                        # Model selection dropdown
+                        if 'revamp_temperature' not in st.session_state:
+                            st.session_state.revamp_temperature = 0.7
+                        # Model selection with session state
                         model = st.selectbox(
                             "AI Model",
                             ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-                            index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].index(st.session_state.revamp_model)
+                            index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].index(st.session_state.revamp_model),
+                            help="Select which OpenAI model to use for content generation",
+                            key="model_selectbox"
                         )
                         
-                        # Update session state
+                        # Update session state when model changes
                         st.session_state.revamp_model = model
                                 
-                        # Temperature slider with proper session state management
                         temperature = st.slider(
-                            "Generation Temperature", 
-                            min_value=0.1, 
-                            max_value=1.5, 
+                            "Creativity Level", 
+                            min_value=0.0, 
+                            max_value=1.0, 
                             value=st.session_state.revamp_temperature, 
                             step=0.1,
-                            help="Lower values are more predictable, higher values more creative",
+                            help="Higher values make output more creative, lower values make it more predictable",
                             key="temperature_slider"
                         )
                         
@@ -1475,36 +1478,34 @@ def main():
                         if 'revamp_section_count' not in st.session_state:
                             st.session_state.revamp_section_count = "Default (3-4)"
                                 
-                        # Create a form for remaining style options
+                        # Initialize form for revamp options
                         with st.form(key="revamp_form"):
-                            # Basic style options
-                            st.subheader("Blog Style Options")
+                            # Basic style options with both dropdowns and custom inputs
+                            st.subheader("Basic Style")
                             
-                            # Tone options with session state
-                            if 'revamp_tone' not in st.session_state:
-                                st.session_state.revamp_tone = "Conversational"
-                                
-                            tone_options = ["Conversational", "Professional", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
+                            # Tone options with custom option and session state
+                            tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
+                            
+                            # Determine index based on session state
                             tone_index = 0
-                            
                             if st.session_state.revamp_tone in tone_options:
                                 tone_index = tone_options.index(st.session_state.revamp_tone)
                             
                             tone = st.selectbox(
-                                "Tone",
+                                "Writing Tone",
                                 tone_options,
                                 index=tone_index,
                                 key="tone_selectbox"
                             )
-                            
-                            if tone == "Custom":
-                                custom_tone_default = ""
-                                if not st.session_state.revamp_tone in tone_options:
-                                    custom_tone_default = st.session_state.revamp_tone
                                     
-                                custom_tone = st.text_input(
-                                    "Custom tone", 
-                                    value=custom_tone_default,
+                                    if tone == "Custom":
+                                        custom_tone_default = ""
+                                        if not st.session_state.revamp_tone in tone_options:
+                                            custom_tone_default = st.session_state.revamp_tone
+                                            
+                                        custom_tone = st.text_input(
+                                            "Custom tone", 
+                                            value=custom_tone_default,
                                             placeholder="e.g., 'Inspirational with a touch of humor'",
                                             key="custom_tone_input"
                                         )

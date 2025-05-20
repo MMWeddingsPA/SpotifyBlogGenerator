@@ -1293,7 +1293,7 @@ def main():
         else:
             st.info("No saved blog posts found. Generate some blog posts first!")
             
-    # Tab 4: Revamp Existing WordPress Posts - Fixed version
+    # Tab 4: Revamp Existing WordPress Posts
     with tab4:
         st.markdown("## Revamp Existing WordPress Posts")
         st.markdown("This feature allows you to revamp existing blog posts from your WordPress site.")
@@ -1437,21 +1437,34 @@ def main():
                         st.write("### Original Post Preview")
                         st.markdown(post['content'], unsafe_allow_html=True)
                         
-                        # Blog style customization options
+                        # Blog style customization options - matching the original blog generator options
                         st.write("### Revamp Style Options")
                         
                         # Initialize model in session state if not present
                         if 'revamp_model' not in st.session_state:
                             st.session_state.revamp_model = "gpt-4o"
                         
-                        # Model selection dropdown
+                        if 'revamp_temperature' not in st.session_state:
+                            st.session_state.revamp_temperature = 0.7
+                            
+                        # Model selection with proper session state management
+                        model_options = ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]
+                        model_index = 0
+                        
+                        # Find the index of the currently selected model
+                        if st.session_state.revamp_model in model_options:
+                            model_index = model_options.index(st.session_state.revamp_model)
+                            
+                        # Create the model selection dropdown
                         model = st.selectbox(
                             "AI Model",
-                            ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-                            index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].index(st.session_state.revamp_model)
+                            model_options,
+                            index=model_index,
+                            help="Select which OpenAI model to use for content generation",
+                            key="model_selectbox"
                         )
                         
-                        # Update session state
+                        # Update session state when model changes
                         st.session_state.revamp_model = model
                                 
                         # Temperature slider with proper session state management
