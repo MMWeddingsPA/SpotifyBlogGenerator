@@ -1497,19 +1497,19 @@ def main():
                                 index=tone_index,
                                 key="tone_selectbox"
                             )
-                            
-                            if tone == "Custom":
-                                custom_tone_default = ""
-                                if not st.session_state.revamp_tone in tone_options:
-                                    custom_tone_default = st.session_state.revamp_tone
                                     
-                                custom_tone = st.text_input(
-                                    "Custom tone", 
-                                    value=custom_tone_default,
-                                    placeholder="e.g., 'Inspirational with a touch of humor'",
-                                    key="custom_tone_input"
-                                )
-                                tone = custom_tone if custom_tone else "Professional"
+                                    if tone == "Custom":
+                                        custom_tone_default = ""
+                                        if not st.session_state.revamp_tone in tone_options:
+                                            custom_tone_default = st.session_state.revamp_tone
+                                            
+                                        custom_tone = st.text_input(
+                                            "Custom tone", 
+                                            value=custom_tone_default,
+                                            placeholder="e.g., 'Inspirational with a touch of humor'",
+                                            key="custom_tone_input"
+                                        )
+                                        tone = custom_tone if custom_tone else "Professional"
                                     
                                     # Save tone to session state
                                     st.session_state.revamp_tone = tone
