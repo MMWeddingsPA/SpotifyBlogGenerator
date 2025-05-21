@@ -2216,54 +2216,6 @@ def main():
             if st.button("Go to WordPress Revamp", key="go_to_revamp_button"):
                 st.session_state.active_tab = "WordPress Revamp"
                 # Note: This won't work directly in Streamlit, but provides a visual cue
-        else:
-            # Create dropdown with post titles
-            post_options = []
-            post_display = {}
-            
-            for post in saved_posts:
-                post_id = post.get('id', 'unknown')
-                post_title = post.get('title', 'Untitled')
-                if isinstance(post_title, dict) and 'rendered' in post_title:
-                    post_title = post_title.get('rendered', 'Untitled')
-                
-                saved_at = post.get('saved_at', '')
-                filepath = post.get('filepath', '')
-                
-                display_text = f"{post_title} (Saved: {saved_at})"
-                post_options.append(filepath)
-                post_display[filepath] = display_text
-            
-            selected_post_path = st.selectbox(
-                "Select a saved post to edit:",
-                options=post_options,
-                format_func=lambda x: post_display.get(x, f"Post: {x}"),
-                key="wordpress_edit_select_3"
-            )
-            
-            # Load selected post
-            if selected_post_path:
-                try:
-                    with open(selected_post_path, 'r') as f:
-                        post_data = json.load(f)
-                        
-                    post_title = post_data.get('title', 'Untitled')
-                    if isinstance(post_title, dict) and 'rendered' in post_title:
-                        post_title = post_title.get('rendered', 'Untitled')
-                    
-                    post_id = post_data.get('id', 'unknown')
-                    post_content = post_data.get('post_data', {}).get('content', '')
-                    
-                    # Handle content format (could be string or dict with rendered property)
-                    if isinstance(post_content, dict) and 'rendered' in post_content:
-                        post_content = post_content.get('rendered', '')
-                    
-                    st.write(f"### Editing: {post_title}")
-                    st.write(f"**Post ID:** {post_id}")
-                    
-                    # Show original content in expander
-                    with st.expander("Original Content", expanded=False):
-                        st.markdown(post_content, unsafe_allow_html=True)
                     
                     # Initialize blog style options 
                     if 'wp_edit_model' not in st.session_state:
