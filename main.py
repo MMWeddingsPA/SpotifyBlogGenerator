@@ -1359,11 +1359,16 @@ def main():
                             with st.expander("Post Content", expanded=True):
                                 st.markdown(post_content, unsafe_allow_html=True)
                         
-                        # Confirm button to move to customization stage
-                        if st.button("✅ Confirm Selection", key="wordpress_confirm_button"):
-                            st.session_state.wp_selected_post = selected_post
-                            st.session_state.wp_post_confirmed = True
-                            st.success(f"Post '{post_title}' selected for revamping! You can now customize the revamped content below.")
+                        # Save post for editing button
+                        if st.button("💾 Save for Editing", key="wordpress_save_button"):
+                            # Extract the content with proper handling of different formats
+                            post_content = selected_post.get('content', '')
+                            if isinstance(post_content, dict) and 'rendered' in post_content:
+                                post_content = post_content.get('rendered', '')
+                            
+                            # Save the post to file
+                            saved_path = save_wordpress_post(selected_post, post_content)
+                            st.success(f"Post '{post_title}' saved for editing! Go to the 'Saved Posts' tab to edit it.")
                             # Rather than rerun here (which can cause issues), we'll let the page refresh naturally
             
             else:
