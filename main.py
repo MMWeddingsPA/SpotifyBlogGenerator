@@ -1779,7 +1779,7 @@ def main():
                             "Writing Tone",
                             tone_options,
                             index=tone_index,
-                            key="wp_edit_tone_select"
+                            key="wp_edit_tone_select_1"
                         )
                         
                         if tone == "Custom":
@@ -1803,7 +1803,7 @@ def main():
                             "Overall Mood",
                             mood_options,
                             index=mood_index,
-                            key="wp_edit_mood_select"
+                            key="wp_edit_mood_select_1"
                         )
                         
                         if mood == "Custom":
@@ -1826,7 +1826,7 @@ def main():
                         "Target Audience",
                         audience_options,
                         index=audience_index,
-                        key="wp_edit_audience_select"
+                        key="wp_edit_audience_select_1"
                     )
                     
                     if audience == "Custom":
@@ -2042,7 +2042,7 @@ def main():
                             "Writing Tone",
                             tone_options,
                             index=tone_index,
-                            key="wp_edit_tone_select"
+                            key="wp_edit_tone_select_2"
                         )
                         
                         if tone == "Custom":
@@ -2066,7 +2066,7 @@ def main():
                             "Overall Mood",
                             mood_options,
                             index=mood_index,
-                            key="wp_edit_mood_select"
+                            key="wp_edit_mood_select_2"
                         )
                         
                         if mood == "Custom":
@@ -2089,7 +2089,7 @@ def main():
                         "Target Audience",
                         audience_options,
                         index=audience_index,
-                        key="wp_edit_audience_select"
+                        key="wp_edit_audience_select_2"
                     )
                     
                     if audience == "Custom":
@@ -2315,7 +2315,7 @@ def main():
                             "Writing Tone",
                             tone_options,
                             index=tone_index,
-                            key="wp_edit_tone_select"
+                            key="wp_edit_tone_select_3"
                         )
                         
                         if tone == "Custom":
@@ -2339,7 +2339,7 @@ def main():
                             "Overall Mood",
                             mood_options,
                             index=mood_index,
-                            key="wp_edit_mood_select"
+                            key="wp_edit_mood_select_3"
                         )
                         
                         if mood == "Custom":
@@ -2362,7 +2362,7 @@ def main():
                         "Target Audience",
                         audience_options,
                         index=audience_index,
-                        key="wp_edit_audience_select"
+                        key="wp_edit_audience_select_3"
                     )
                     
                     if audience == "Custom":
