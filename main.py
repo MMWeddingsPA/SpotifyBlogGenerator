@@ -1122,36 +1122,113 @@ def main():
                 
             # Stage 1: Post Selection (only if no post is confirmed)
             if not st.session_state.wp_post_confirmed:
-                st.write("Search for WordPress posts to revamp.")
+                st.write("Find WordPress posts to revamp by searching or browsing categories.")
                 
-                # Search UI
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    search_term = st.text_input(
-                        "Search by title", 
-                        value=st.session_state.wp_search_term,
-                        key="wordpress_search_input"
-                    )
-                with col2:
-                    if st.button("🔍 Search", key="wordpress_search_button"):
-                        with st.spinner("Searching WordPress posts..."):
-                            st.session_state.wp_search_term = search_term
-                            try:
-                                posts = wordpress_api.get_posts(
-                                    search_term=search_term,
-                                    per_page=10,
-                                    page=1
-                                )
-                                
-                                if posts:
-                                    st.session_state.wp_posts = posts
-                                    st.success(f"Found {len(posts)} posts matching your search.")
-                                else:
-                                    st.info("No posts found matching your search criteria.")
+                # Initialize category state if needed
+                if 'wp_categories' not in st.session_state:
+                    st.session_state.wp_categories = []
+                    try:
+                        with st.spinner("Loading categories..."):
+                            categories = wordpress_api.get_categories()
+                            if categories:
+                                st.session_state.wp_categories = categories
+                    except Exception as e:
+                        st.error(f"Could not load categories: {str(e)}")
+                
+                # Create tabs for different ways to find posts
+                find_tabs = st.tabs(["Search by Title", "Browse by Category"])
+                
+                # Tab 1: Search by title
+                with find_tabs[0]:
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        search_term = st.text_input(
+                            "Search by title", 
+                            value=st.session_state.wp_search_term,
+                            key="wordpress_search_input"
+                        )
+                    with col2:
+                        if st.button("🔍 Search", key="wordpress_search_button"):
+                            with st.spinner("Searching WordPress posts..."):
+                                st.session_state.wp_search_term = search_term
+                                try:
+                                    posts = wordpress_api.get_posts(
+                                        search_term=search_term,
+                                        per_page=10,
+                                        page=1
+                                    )
+                                    
+                                    if posts:
+                                        st.session_state.wp_posts = posts
+                                        st.success(f"Found {len(posts)} posts matching your search.")
+                                    else:
+                                        st.info("No posts found matching your search criteria.")
+                                        st.session_state.wp_posts = []
+                                except Exception as e:
+                                    st.error(f"Error searching WordPress posts: {str(e)}")
                                     st.session_state.wp_posts = []
-                            except Exception as e:
-                                st.error(f"Error searching WordPress posts: {str(e)}")
-                                st.session_state.wp_posts = []
+                
+                # Tab 2: Browse by category
+                with find_tabs[1]:
+                    if st.session_state.wp_categories:
+                        # Format categories for display
+                        category_options = []
+                        category_display = {}
+                        
+                        for category in st.session_state.wp_categories:
+                            cat_id = category.get('id')
+                            cat_name = category.get('name', 'Unnamed')
+                            cat_count = category.get('count', 0)
+                            
+                            if cat_count > 0:  # Only show categories with posts
+                                display_text = f"{cat_name} ({cat_count} posts)"
+                                category_options.append(cat_id)
+                                category_display[cat_id] = display_text
+                        
+                        if category_options:
+                            # Category selection dropdown
+                            selected_category = st.selectbox(
+                                "Select a category",
+                                options=category_options,
+                                format_func=lambda x: category_display.get(x, f"Category {x}"),
+                                key="wordpress_category_selector"
+                            )
+                            
+                            # Button to load posts for selected category
+                            if st.button("Load Posts", key="wordpress_load_category_button"):
+                                with st.spinner(f"Loading posts from selected category..."):
+                                    try:
+                                        posts = wordpress_api.get_posts(
+                                            category=selected_category,
+                                            per_page=20,
+                                            page=1
+                                        )
+                                        
+                                        if posts:
+                                            st.session_state.wp_posts = posts
+                                            st.success(f"Found {len(posts)} posts in the selected category.")
+                                        else:
+                                            st.info("No posts found in this category.")
+                                            st.session_state.wp_posts = []
+                                    except Exception as e:
+                                        st.error(f"Error loading posts from category: {str(e)}")
+                                        st.session_state.wp_posts = []
+                        else:
+                            st.info("No categories with posts available.")
+                    else:
+                        st.info("No categories found. Please check your WordPress site configuration.")
+                        # Reload categories button
+                        if st.button("Reload Categories", key="wordpress_reload_categories"):
+                            with st.spinner("Loading categories..."):
+                                try:
+                                    categories = wordpress_api.get_categories()
+                                    if categories:
+                                        st.session_state.wp_categories = categories
+                                        st.success(f"Loaded {len(categories)} categories.")
+                                    else:
+                                        st.warning("No categories found on your WordPress site.")
+                                except Exception as e:
+                                    st.error(f"Error loading categories: {str(e)}")
                 
                 # Display results if available
                 if st.session_state.wp_posts:
