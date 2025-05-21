@@ -1120,8 +1120,8 @@ def main():
             if 'wp_revamped_content' not in st.session_state:
                 st.session_state.wp_revamped_content = None
                 
-            # Stage 1: Post Selection (only if no post is confirmed)
             if not st.session_state.wp_post_confirmed:
+                # Stage 1: Post Selection
                 st.write("Find WordPress posts to revamp by searching or browsing categories.")
                 
                 # Initialize category state if needed
@@ -1305,8 +1305,8 @@ def main():
                             st.success(f"Post '{post_title}' selected for revamping! You can now customize the revamped content below.")
                             # Rather than rerun here (which can cause issues), we'll let the page refresh naturally
             
-            # Stage 2: Post Customization and Revamp (only if post is confirmed)
             else:
+                # Stage 2: Post Customization and Revamp (post is confirmed)
                 selected_post = st.session_state.wp_selected_post
                 
                 if not selected_post:
@@ -1315,8 +1315,13 @@ def main():
                         st.session_state.wp_post_confirmed = False
                         st.session_state.wp_selected_post = None
                 else:
-                    # Post header
-                    post_title = selected_post.get('title', {}).get('rendered', 'Untitled')
+                    # Post header - handle different title formats
+                    post_title = selected_post.get('title', '')
+                    if isinstance(post_title, dict) and 'rendered' in post_title:
+                        post_title = post_title.get('rendered', 'Untitled')
+                    elif not isinstance(post_title, str):
+                        post_title = 'Untitled'
+                        
                     post_id = selected_post.get('id')
                     post_date = selected_post.get('date', '').split('T')[0]
                     
@@ -1342,7 +1347,12 @@ def main():
                     
                     # Original content expander
                     with st.expander("Original Content", expanded=False):
-                        post_content = selected_post.get('content', {}).get('rendered', 'No content available')
+                        post_content = selected_post.get('content', '')
+                        if isinstance(post_content, dict) and 'rendered' in post_content:
+                            post_content = post_content.get('rendered', 'No content available')
+                        elif not isinstance(post_content, str):
+                            post_content = 'No content available'
+                            
                         st.markdown(post_content, unsafe_allow_html=True)
                     
                     # Style customization options
