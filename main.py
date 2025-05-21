@@ -1870,10 +1870,20 @@ def main():
                         with st.spinner("Revamping blog post content..."):
                             try:
                                 # Import necessary functions
-                                from utils.openai_api import revamp_existing_blog, extract_spotify_link
+                                from utils.openai_api import revamp_existing_blog, extract_spotify_link, extract_spotify_playlist_id
                                 
                                 # Extract Spotify link if available
                                 spotify_link = extract_spotify_link(post_content)
+                                
+                                if spotify_link:
+                                    # Extract Spotify playlist ID
+                                    spotify_playlist_id = extract_spotify_playlist_id(spotify_link)
+                                    if spotify_playlist_id and spotify_api:
+                                        st.info(f"📝 Found Spotify playlist. Will generate blog content from songs in this playlist.")
+                                    else:
+                                        st.warning(f"⚠️ Found Spotify link but couldn't extract playlist ID. Will use songs from the original post.")
+                                else:
+                                    st.warning(f"⚠️ No Spotify playlist found in post. Will use songs from the original post.")
                                 
                                 # Create style options dictionary
                                 style_options = {
@@ -1887,12 +1897,16 @@ def main():
                                 if st.session_state.wp_edit_guidance:
                                     style_options['custom_guidance'] = st.session_state.wp_edit_guidance
                                 
+                                # Inform user about what we're doing 
+                                st.write("🎵 Generating revamped blog post...") 
+                                    
                                 # Generate revamped content
                                 revamped_content = revamp_existing_blog(
                                     post_content=post_content,
                                     post_title=post_title,
                                     youtube_api=youtube_api,
-                                    style_options=style_options
+                                    style_options=style_options,
+                                    spotify_api=spotify_api
                                 )
                                 
                                 # Update the saved post with the revamped content
