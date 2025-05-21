@@ -1152,15 +1152,15 @@ def main():
                             with st.spinner("Searching WordPress posts..."):
                                 st.session_state.wp_search_term = search_term
                                 try:
-                                    posts = wordpress_api.get_posts(
+                                    result = wordpress_api.get_posts(
                                         search_term=search_term,
                                         per_page=10,
                                         page=1
                                     )
                                     
-                                    if posts:
-                                        st.session_state.wp_posts = posts
-                                        st.success(f"Found {len(posts)} posts matching your search.")
+                                    if result and 'posts' in result and result['posts']:
+                                        st.session_state.wp_posts = result['posts']
+                                        st.success(f"Found {len(result['posts'])} posts matching your search.")
                                     else:
                                         st.info("No posts found matching your search criteria.")
                                         st.session_state.wp_posts = []
@@ -1198,15 +1198,16 @@ def main():
                             if st.button("Load Posts", key="wordpress_load_category_button"):
                                 with st.spinner(f"Loading posts from selected category..."):
                                     try:
-                                        posts = wordpress_api.get_posts(
+                                        result = wordpress_api.get_posts(
                                             category=selected_category,
                                             per_page=20,
                                             page=1
                                         )
                                         
-                                        if posts:
-                                            st.session_state.wp_posts = posts
-                                            st.success(f"Found {len(posts)} posts in the selected category.")
+                                        if result and 'posts' in result and result['posts']:
+                                            st.session_state.wp_posts = result['posts']
+                                            st.session_state.wp_search_term = ""  # Clear search term
+                                            st.success(f"Found {len(result['posts'])} posts in the selected category.")
                                         else:
                                             st.info("No posts found in this category.")
                                             st.session_state.wp_posts = []
@@ -1238,8 +1239,16 @@ def main():
                     
                     for post in st.session_state.wp_posts:
                         post_id = post.get('id')
-                        post_title = post.get('title', {}).get('rendered', 'Untitled')
-                        post_date = post.get('date', '').split('T')[0]
+                        post_title = post.get('title')
+                        post_date = post.get('date', '').split('T')[0] if post.get('date') else ''
+                        
+                        # Handle different title formats
+                        if isinstance(post_title, dict) and 'rendered' in post_title:
+                            post_title = post_title.get('rendered', 'Untitled')
+                        elif isinstance(post_title, str):
+                            post_title = post_title
+                        else:
+                            post_title = 'Untitled'
                         
                         display_text = f"{post_title} ({post_date})"
                         post_options.append(post_id)
@@ -1258,6 +1267,7 @@ def main():
                     for post in st.session_state.wp_posts:
                         if post.get('id') == selected_post_id:
                             selected_post = post
+                            st.session_state.wp_selected_post = post  # Save to session state
                             break
                     
                     if selected_post:
