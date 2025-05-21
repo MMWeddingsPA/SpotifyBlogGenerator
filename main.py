@@ -1472,9 +1472,19 @@ def main():
                     if st.button("✨ Revamp Blog Post", key="wp_revamp_button"):
                         with st.spinner("Revamping blog post content..."):
                             try:
-                                # Get post content and title
-                                post_content = selected_post.get('content', {}).get('rendered', '')
-                                post_title = selected_post.get('title', {}).get('rendered', 'Untitled')
+                                # Get post content with proper handling for different formats
+                                post_content = selected_post.get('content', '')
+                                if isinstance(post_content, dict) and 'rendered' in post_content:
+                                    post_content = post_content.get('rendered', '')
+                                elif not isinstance(post_content, str):
+                                    post_content = ''
+                                
+                                # Get post title with proper handling for different formats
+                                post_title = selected_post.get('title', '')
+                                if isinstance(post_title, dict) and 'rendered' in post_title:
+                                    post_title = post_title.get('rendered', 'Untitled')
+                                elif not isinstance(post_title, str):
+                                    post_title = 'Untitled'
                                 
                                 # Import necessary functions
                                 from utils.openai_api import revamp_existing_blog, extract_spotify_link
