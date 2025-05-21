@@ -1670,7 +1670,7 @@ def main():
                                     st.error(traceback.format_exc())
                                 
                                 # Posting actions
-                                col1, col2 = st.columns(2)
+                                col1, col2, col3 = st.columns(3)
                                 with col1:
                                     # Post to WordPress
                                     if st.button("🚀 Post to WordPress", key="wp_post_button"):
@@ -1703,10 +1703,28 @@ def main():
                                             st.success(f"✅ Revamped blog post saved to {filename}")
                                         except Exception as e:
                                             st.error(f"❌ Error saving blog post: {str(e)}")
+                                
+                                with col3:
+                                    # Save for editing in WordPress Edit tab
+                                    if st.button("✏️ Save for Editing", key="wp_save_for_edit_button"):
+                                        try:
+                                            # Save the post data and revamped content for editing
+                                            original_post = st.session_state.wp_selected_post
+                                            filepath = save_wordpress_post(
+                                                post_data=original_post,
+                                                post_content=revamped_content
+                                            )
+                                            st.success(f"✅ Post saved for editing! Go to the WordPress Edit tab to continue.")
+                                        except Exception as e:
+                                            st.error(f"❌ Error saving post for editing: {str(e)}")
                             
                             except Exception as e:
                                 st.error(f"❌ Error revamping blog post: {str(e)}")
                                 st.error(traceback.format_exc())
+    
+    # Tab 5: WordPress Edit
+    with tab5:
+        st.subheader("WordPress Edit")
         
         # List all saved WordPress posts
         saved_posts = list_wordpress_posts()
