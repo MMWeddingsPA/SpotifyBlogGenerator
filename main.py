@@ -1099,6 +1099,359 @@ def main():
         else:
             st.info("No saved blog posts found. Generate some blog posts first!")
 
+# WordPress Revamp Tab
+    with tab4:
+        st.subheader("WordPress Revamp")
+        
+        # Check if WordPress API is available
+        if wordpress_api is None:
+            st.error("WordPress API is not configured. Please configure it in the environment settings.")
+            st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables.")
+        else:
+            # Initialize session state variables for WordPress revamp tab
+            if 'wp_search_term' not in st.session_state:
+                st.session_state.wp_search_term = ""
+            if 'wp_posts' not in st.session_state:
+                st.session_state.wp_posts = []
+            if 'wp_selected_post' not in st.session_state:
+                st.session_state.wp_selected_post = None
+            if 'wp_post_confirmed' not in st.session_state:
+                st.session_state.wp_post_confirmed = False
+            if 'wp_revamped_content' not in st.session_state:
+                st.session_state.wp_revamped_content = None
+                
+            # Stage 1: Post Selection (only if no post is confirmed)
+            if not st.session_state.wp_post_confirmed:
+                st.write("Search for WordPress posts to revamp.")
+                
+                # Search UI
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    search_term = st.text_input(
+                        "Search by title", 
+                        value=st.session_state.wp_search_term,
+                        key="wordpress_search_input"
+                    )
+                with col2:
+                    if st.button("🔍 Search", key="wordpress_search_button"):
+                        with st.spinner("Searching WordPress posts..."):
+                            st.session_state.wp_search_term = search_term
+                            try:
+                                posts = wordpress_api.get_posts(
+                                    search_term=search_term,
+                                    per_page=10,
+                                    page=1
+                                )
+                                
+                                if posts:
+                                    st.session_state.wp_posts = posts
+                                    st.success(f"Found {len(posts)} posts matching your search.")
+                                else:
+                                    st.info("No posts found matching your search criteria.")
+                                    st.session_state.wp_posts = []
+                            except Exception as e:
+                                st.error(f"Error searching WordPress posts: {str(e)}")
+                                st.session_state.wp_posts = []
+                
+                # Display results if available
+                if st.session_state.wp_posts:
+                    # Format for display
+                    post_options = []
+                    post_display = {}
+                    
+                    for post in st.session_state.wp_posts:
+                        post_id = post.get('id')
+                        post_title = post.get('title', {}).get('rendered', 'Untitled')
+                        post_date = post.get('date', '').split('T')[0]
+                        
+                        display_text = f"{post_title} ({post_date})"
+                        post_options.append(post_id)
+                        post_display[post_id] = display_text
+                    
+                    # Post selection UI
+                    selected_post_id = st.selectbox(
+                        "Select a post to revamp:",
+                        options=post_options,
+                        format_func=lambda x: post_display.get(x, f"Post ID: {x}"),
+                        key="wordpress_post_selector"
+                    )
+                    
+                    # Get the full post data for the selected post
+                    selected_post = None
+                    for post in st.session_state.wp_posts:
+                        if post.get('id') == selected_post_id:
+                            selected_post = post
+                            break
+                    
+                    if selected_post:
+                        # Show post details
+                        post_title = selected_post.get('title', {}).get('rendered', 'Untitled')
+                        post_date = selected_post.get('date', '').split('T')[0]
+                        
+                        st.write(f"**Selected Post:** {post_title}")
+                        st.write(f"**Date Published:** {post_date}")
+                        
+                        # Preview button
+                        if st.button("👁️ Preview Post", key="wordpress_preview_button"):
+                            post_content = selected_post.get('content', {}).get('rendered', 'No content available')
+                            with st.expander("Post Content", expanded=True):
+                                st.markdown(post_content, unsafe_allow_html=True)
+                        
+                        # Confirm button to move to customization stage
+                        if st.button("✅ Confirm Selection", key="wordpress_confirm_button"):
+                            st.session_state.wp_selected_post = selected_post
+                            st.session_state.wp_post_confirmed = True
+                            st.success(f"Post '{post_title}' selected for revamping!")
+                            # Rather than rerun here (which can cause issues), we'll let the page refresh naturally
+            
+            # Stage 2: Post Customization and Revamp (only if post is confirmed)
+            else:
+                selected_post = st.session_state.wp_selected_post
+                
+                if not selected_post:
+                    st.error("No post selected. Please go back and select a post.")
+                    if st.button("⬅️ Back to Selection", key="wordpress_back_button"):
+                        st.session_state.wp_post_confirmed = False
+                        st.session_state.wp_selected_post = None
+                else:
+                    # Post header
+                    post_title = selected_post.get('title', {}).get('rendered', 'Untitled')
+                    post_id = selected_post.get('id')
+                    post_date = selected_post.get('date', '').split('T')[0]
+                    
+                    st.write(f"### Revamping: {post_title}")
+                    st.write(f"**ID:** {post_id} | **Published:** {post_date}")
+                    
+                    # Back button
+                    if st.button("⬅️ Back to Selection", key="wordpress_back_button2"):
+                        st.session_state.wp_post_confirmed = False
+                        # Keep the selected post in memory, but don't mark it as confirmed
+                    
+                    # Initialize blog style options in session state if not present
+                    if 'wp_revamp_model' not in st.session_state:
+                        st.session_state.wp_revamp_model = "gpt-4o"
+                    if 'wp_revamp_temp' not in st.session_state:
+                        st.session_state.wp_revamp_temp = 0.7
+                    if 'wp_revamp_tone' not in st.session_state:
+                        st.session_state.wp_revamp_tone = "Professional"
+                    if 'wp_revamp_mood' not in st.session_state:
+                        st.session_state.wp_revamp_mood = "Elegant"
+                    if 'wp_revamp_audience' not in st.session_state:
+                        st.session_state.wp_revamp_audience = "Modern Couples"
+                    
+                    # Original content expander
+                    with st.expander("Original Content", expanded=False):
+                        post_content = selected_post.get('content', {}).get('rendered', 'No content available')
+                        st.markdown(post_content, unsafe_allow_html=True)
+                    
+                    # Style customization options
+                    st.subheader("Blog Style Options")
+                    
+                    # Two columns for model options
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        # Use session state to maintain selection
+                        model = st.selectbox(
+                            "AI Model",
+                            ["gpt-4o", "gpt-4.1", "gpt-4.1-mini"],
+                            index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini"].index(st.session_state.wp_revamp_model),
+                            key="wp_model_select"
+                        )
+                        st.session_state.wp_revamp_model = model
+                    
+                    with col2:
+                        # Use session state to maintain slider value
+                        temp = st.slider(
+                            "Creativity Level",
+                            min_value=0.0,
+                            max_value=1.0,
+                            value=st.session_state.wp_revamp_temp,
+                            step=0.1,
+                            key="wp_temp_slider"
+                        )
+                        st.session_state.wp_revamp_temp = temp
+                    
+                    # Two columns for style options
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        # Tone options
+                        tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Custom"]
+                        tone_index = 0
+                        if st.session_state.wp_revamp_tone in tone_options:
+                            tone_index = tone_options.index(st.session_state.wp_revamp_tone)
+                        
+                        tone = st.selectbox(
+                            "Tone",
+                            tone_options,
+                            index=tone_index,
+                            key="wp_tone_select"
+                        )
+                        
+                        if tone == "Custom":
+                            custom_tone = st.text_input(
+                                "Custom tone",
+                                value="" if st.session_state.wp_revamp_tone not in tone_options else st.session_state.wp_revamp_tone,
+                                key="wp_custom_tone_input"
+                            )
+                            st.session_state.wp_revamp_tone = custom_tone if custom_tone else "Professional"
+                        else:
+                            st.session_state.wp_revamp_tone = tone
+                    
+                    with col2:
+                        # Mood options
+                        mood_options = ["Elegant", "Fun", "Emotional", "Energetic", "Romantic", "Custom"]
+                        mood_index = 0
+                        if st.session_state.wp_revamp_mood in mood_options:
+                            mood_index = mood_options.index(st.session_state.wp_revamp_mood)
+                        
+                        mood = st.selectbox(
+                            "Mood",
+                            mood_options,
+                            index=mood_index,
+                            key="wp_mood_select"
+                        )
+                        
+                        if mood == "Custom":
+                            custom_mood = st.text_input(
+                                "Custom mood",
+                                value="" if st.session_state.wp_revamp_mood not in mood_options else st.session_state.wp_revamp_mood,
+                                key="wp_custom_mood_input"
+                            )
+                            st.session_state.wp_revamp_mood = custom_mood if custom_mood else "Elegant"
+                        else:
+                            st.session_state.wp_revamp_mood = mood
+                    
+                    # Audience selection
+                    audience_options = ["Modern Couples", "Traditional Couples", "Brides", "Grooms", "All Couples", "Custom"]
+                    audience_index = 0
+                    if st.session_state.wp_revamp_audience in audience_options:
+                        audience_index = audience_options.index(st.session_state.wp_revamp_audience)
+                    
+                    audience = st.selectbox(
+                        "Target Audience",
+                        audience_options,
+                        index=audience_index,
+                        key="wp_audience_select"
+                    )
+                    
+                    if audience == "Custom":
+                        custom_audience = st.text_input(
+                            "Custom audience",
+                            value="" if st.session_state.wp_revamp_audience not in audience_options else st.session_state.wp_revamp_audience,
+                            key="wp_custom_audience_input"
+                        )
+                        st.session_state.wp_revamp_audience = custom_audience if custom_audience else "Modern Couples"
+                    else:
+                        st.session_state.wp_revamp_audience = audience
+                    
+                    # Additional guidance
+                    if 'wp_revamp_guidance' not in st.session_state:
+                        st.session_state.wp_revamp_guidance = ""
+                    
+                    guidance = st.text_area(
+                        "Additional Style Guidance (Optional)",
+                        value=st.session_state.wp_revamp_guidance,
+                        placeholder="Add any specific style instructions or requirements for the revamped blog post",
+                        height=100,
+                        key="wp_guidance_input"
+                    )
+                    st.session_state.wp_revamp_guidance = guidance
+                    
+                    # Revamp button
+                    if st.button("✨ Revamp Blog Post", key="wp_revamp_button"):
+                        with st.spinner("Revamping blog post content..."):
+                            try:
+                                # Get post content and title
+                                post_content = selected_post.get('content', {}).get('rendered', '')
+                                post_title = selected_post.get('title', {}).get('rendered', 'Untitled')
+                                
+                                # Import necessary functions
+                                from utils.openai_api import revamp_existing_blog, extract_spotify_link
+                                
+                                # Extract Spotify link if available
+                                spotify_link = extract_spotify_link(post_content)
+                                
+                                # Create style options dictionary
+                                style_options = {
+                                    'model': st.session_state.wp_revamp_model,
+                                    'temperature': st.session_state.wp_revamp_temp,
+                                    'tone': st.session_state.wp_revamp_tone,
+                                    'mood': st.session_state.wp_revamp_mood,
+                                    'audience': st.session_state.wp_revamp_audience
+                                }
+                                
+                                if st.session_state.wp_revamp_guidance:
+                                    style_options['custom_guidance'] = st.session_state.wp_revamp_guidance
+                                
+                                # Generate revamped content
+                                revamped_content = revamp_existing_blog(
+                                    post_content=post_content,
+                                    post_title=post_title,
+                                    youtube_api=youtube_api,
+                                    style_options=style_options
+                                )
+                                
+                                # Store in session state
+                                st.session_state.wp_revamped_content = revamped_content
+                                
+                                # Show success message
+                                st.success("✨ Blog post successfully revamped!")
+                                
+                                # Show the revamped content preview
+                                with st.expander("Revamped Content Preview", expanded=True):
+                                    st.markdown(revamped_content, unsafe_allow_html=True)
+                                
+                                # Post to WordPress options
+                                st.subheader("Publish Options")
+                                
+                                # Title and status
+                                new_title = st.text_input("Post Title", value=post_title)
+                                status = st.selectbox(
+                                    "Post Status",
+                                    options=["draft", "publish"],
+                                    index=0,
+                                    key="wp_status_select"
+                                )
+                                
+                                # Posting actions
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    # Post to WordPress
+                                    if st.button("🚀 Post to WordPress", key="wp_post_button"):
+                                        with st.spinner("Creating post in WordPress..."):
+                                            try:
+                                                result = wordpress_api.create_post(
+                                                    title=new_title,
+                                                    content=revamped_content,
+                                                    status=status
+                                                )
+                                                
+                                                if result.get('success'):
+                                                    st.success(f"✅ Post created successfully! ID: {result.get('post_id')}")
+                                                    if result.get('edit_url'):
+                                                        st.markdown(f"[View/Edit Post on WordPress]({result.get('edit_url')})")
+                                                else:
+                                                    st.error(f"❌ Failed to create post: {result.get('error')}")
+                                            except Exception as e:
+                                                st.error(f"❌ Error creating post: {str(e)}")
+                                
+                                with col2:
+                                    # Save locally
+                                    if st.button("💾 Save Locally", key="wp_save_local_button"):
+                                        try:
+                                            filename = save_blog_post(
+                                                playlist_name=f"Revamped-{post_id}",
+                                                blog_content=revamped_content,
+                                                title=new_title
+                                            )
+                                            st.success(f"✅ Revamped blog post saved to {filename}")
+                                        except Exception as e:
+                                            st.error(f"❌ Error saving blog post: {str(e)}")
+                            
+                            except Exception as e:
+                                st.error(f"❌ Error revamping blog post: {str(e)}")
+                                st.error(traceback.format_exc())
+
 if __name__ == "__main__":
     import re  # Import at the top
     print("Starting application")
