@@ -1875,15 +1875,26 @@ def main():
                                 # Extract Spotify link if available
                                 spotify_link = extract_spotify_link(post_content)
                                 
+                                # Debug: Show first part of content for troubleshooting
+                                st.markdown("<details><summary>Debug: First 300 characters of post content for Spotify detection</summary><pre>" + 
+                                            post_content[:300].replace('<', '&lt;').replace('>', '&gt;') + 
+                                            "</pre></details>", unsafe_allow_html=True)
+                                
                                 if spotify_link:
                                     # Extract Spotify playlist ID
                                     spotify_playlist_id = extract_spotify_playlist_id(spotify_link)
                                     if spotify_playlist_id and spotify_api:
-                                        st.info(f"📝 Found Spotify playlist. Will generate blog content from songs in this playlist.")
+                                        st.info(f"📝 Found Spotify playlist: {spotify_link}")
+                                        st.info(f"Will generate blog content from songs in this playlist (ID: {spotify_playlist_id}).")
                                     else:
-                                        st.warning(f"⚠️ Found Spotify link but couldn't extract playlist ID. Will use songs from the original post.")
+                                        st.warning(f"⚠️ Found Spotify link {spotify_link} but couldn't extract playlist ID. Will use songs from the original post.")
                                 else:
                                     st.warning(f"⚠️ No Spotify playlist found in post. Will use songs from the original post.")
+                                    # Try to extract any Spotify-like URL for debugging
+                                    import re
+                                    spotify_debug_pattern = r'spotify'
+                                    if re.search(spotify_debug_pattern, post_content, re.IGNORECASE):
+                                        st.info("Debug: Found 'spotify' text in content but couldn't extract a valid playlist URL.")
                                 
                                 # Create style options dictionary
                                 style_options = {
