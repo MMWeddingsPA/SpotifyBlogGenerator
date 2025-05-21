@@ -1674,11 +1674,14 @@ def main():
     with tab5:
         st.subheader("WordPress Edit")
         
+        # Ensure wordpress_posts directory exists
+        os.makedirs("wordpress_posts", exist_ok=True)
+        
         # List all saved WordPress posts
         saved_posts = list_wordpress_posts()
         
         if not saved_posts:
-            st.info("No saved WordPress posts found. Go to the WordPress Revamp tab to browse and save posts first.")
+            st.info("No saved WordPress posts found. Go to the WordPress Revamp tab, select a post, and click 'Save for Editing' first.")
         else:
             # Create dropdown with post titles
             post_options = []
@@ -1750,7 +1753,7 @@ def main():
                             "AI Model",
                             ["gpt-4o", "gpt-4.1", "gpt-4.1-mini"],
                             index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini"].index(st.session_state.wp_edit_model),
-                            key="wp_edit_model_select_1"
+                            key="wp_edit_model_select"
                         )
                         st.session_state.wp_edit_model = model
                     
@@ -1761,7 +1764,7 @@ def main():
                             max_value=1.0,
                             value=st.session_state.wp_edit_temp,
                             step=0.1,
-                            key="wp_edit_temp_slider_1"
+                            key="wp_edit_temp_slider"
                         )
                         st.session_state.wp_edit_temp = temp
                     
@@ -1779,7 +1782,7 @@ def main():
                             "Writing Tone",
                             tone_options,
                             index=tone_index,
-                            key="wp_edit_tone_select_1"
+                            key="wp_edit_tone_select"
                         )
                         
                         if tone == "Custom":
@@ -1803,7 +1806,7 @@ def main():
                             "Overall Mood",
                             mood_options,
                             index=mood_index,
-                            key="wp_edit_mood_select_1"
+                            key="wp_edit_mood_select"
                         )
                         
                         if mood == "Custom":
@@ -1826,7 +1829,7 @@ def main():
                         "Target Audience",
                         audience_options,
                         index=audience_index,
-                        key="wp_edit_audience_select_1"
+                        key="wp_edit_audience_select"
                     )
                     
                     if audience == "Custom":
@@ -1964,86 +1967,8 @@ def main():
                 "Select a saved post to edit:",
                 options=post_options,
                 format_func=lambda x: post_display.get(x, f"Post: {x}"),
-                key="wordpress_edit_select_2"
+                key="wordpress_edit_select"
             )
-            
-            # Load selected post
-            if selected_post_path:
-                try:
-                    with open(selected_post_path, 'r') as f:
-                        post_data = json.load(f)
-                        
-                    post_title = post_data.get('title', 'Untitled')
-                    if isinstance(post_title, dict) and 'rendered' in post_title:
-                        post_title = post_title.get('rendered', 'Untitled')
-                    
-                    post_id = post_data.get('id', 'unknown')
-                    post_content = post_data.get('post_data', {}).get('content', '')
-                    
-                    # Handle content format (could be string or dict with rendered property)
-                    if isinstance(post_content, dict) and 'rendered' in post_content:
-                        post_content = post_content.get('rendered', '')
-                    
-                    st.write(f"### Editing: {post_title}")
-                    st.write(f"**Post ID:** {post_id}")
-                    
-                    # Show original content in expander
-                    with st.expander("Original Content", expanded=False):
-                        st.markdown(post_content, unsafe_allow_html=True)
-                    
-                    # Initialize blog style options 
-                    if 'wp_edit_model' not in st.session_state:
-                        st.session_state.wp_edit_model = "gpt-4o"
-                    if 'wp_edit_temp' not in st.session_state:
-                        st.session_state.wp_edit_temp = 0.7
-                    if 'wp_edit_tone' not in st.session_state:
-                        st.session_state.wp_edit_tone = "Professional"
-                    if 'wp_edit_mood' not in st.session_state:
-                        st.session_state.wp_edit_mood = "Elegant"
-                    if 'wp_edit_audience' not in st.session_state:
-                        st.session_state.wp_edit_audience = "Modern Couples"
-                    
-                    # Style customization options
-                    st.subheader("Blog Style Options")
-                    
-                    # Two columns for model options
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        model = st.selectbox(
-                            "AI Model",
-                            ["gpt-4o", "gpt-4.1", "gpt-4.1-mini"],
-                            index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini"].index(st.session_state.wp_edit_model),
-                            key="wp_edit_model_select_2"
-                        )
-                        st.session_state.wp_edit_model = model
-                    
-                    with col2:
-                        temp = st.slider(
-                            "Creativity Level",
-                            min_value=0.0,
-                            max_value=1.0,
-                            value=st.session_state.wp_edit_temp,
-                            step=0.1,
-                            key="wp_edit_temp_slider_2"
-                        )
-                        st.session_state.wp_edit_temp = temp
-                    
-                    # Two columns for style options
-                    col1, col2 = st.columns(2)
-                    
-                    # Column 1: Tone
-                    with col1:
-                        tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Custom"]
-                        tone_index = 0
-                        if st.session_state.wp_edit_tone in tone_options:
-                            tone_index = tone_options.index(st.session_state.wp_edit_tone)
-                        
-                        tone = st.selectbox(
-                            "Writing Tone",
-                            tone_options,
-                            index=tone_index,
-                            key="wp_edit_tone_select_2"
-                        )
                         
                         if tone == "Custom":
                             custom_tone = st.text_input(
@@ -2198,18 +2123,6 @@ def main():
                 except Exception as e:
                     st.error(f"Error loading post data: {str(e)}")
 
-    # Tab 5: WordPress Edit
-    with tab5:
-        st.subheader("Edit Saved WordPress Posts")
-        
-        # Ensure wordpress_posts directory exists
-        os.makedirs("wordpress_posts", exist_ok=True)
-        
-        # List all saved WordPress posts
-        saved_posts = list_wordpress_posts()
-        
-        if not saved_posts:
-            st.info("No saved WordPress posts found. Go to the WordPress Revamp tab, select a post, and click 'Save for Editing' first.")
             
             # Add a button to go to WordPress Revamp tab
             if st.button("Go to WordPress Revamp", key="go_to_revamp_button"):
