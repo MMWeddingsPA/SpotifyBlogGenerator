@@ -280,39 +280,56 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                 # Clean the playlist name for the blog post (remove numeric prefix)
                 clean_name = clean_playlist_name_for_blog(playlist)
                 
-                # Get blog customization options if they were provided
+                # Get blog customization options
                 style_options = {}
                 
-                # Check if the customization variables are in the current context
-                if 'model' in locals():
-                    style_options['model'] = model
-                
-                if 'temperature' in locals():
-                    style_options['temperature'] = temperature
-                
-                if 'tone' in locals():
-                    style_options['tone'] = tone
-                
-                if 'mood' in locals():
-                    style_options['mood'] = mood
-                
-                if 'intro_theme' in locals():
-                    style_options['intro_theme'] = intro_theme
-                
-                if 'conclusion_theme' in locals():
-                    style_options['conclusion_theme'] = conclusion_theme
-                
-                if 'section_count' in locals():
-                    style_options['section_count'] = section_count
-                
-                if 'title_style' in locals():
-                    style_options['title_style'] = title_style
-                
-                if 'audience' in locals():
-                    style_options['audience'] = audience
-                
-                if 'custom_guidance' in locals() and custom_guidance:
-                    style_options['custom_guidance'] = custom_guidance
+                # Check for standard dropdown selections
+                try:
+                    if 'model' in st.session_state:
+                        style_options['model'] = st.session_state.model
+                    
+                    if 'temperature' in st.session_state:
+                        style_options['temperature'] = st.session_state.temperature
+                    
+                    if 'tone' in st.session_state:
+                        style_options['tone'] = st.session_state.tone
+                    
+                    if 'mood' in st.session_state:
+                        style_options['mood'] = st.session_state.mood
+                    
+                    if 'intro_theme' in st.session_state:
+                        style_options['intro_theme'] = st.session_state.intro_theme
+                    
+                    if 'conclusion_theme' in st.session_state:
+                        style_options['conclusion_theme'] = st.session_state.conclusion_theme
+                    
+                    if 'section_count' in st.session_state:
+                        style_options['section_count'] = st.session_state.section_count
+                    
+                    if 'title_style' in st.session_state:
+                        style_options['title_style'] = st.session_state.title_style
+                    
+                    if 'audience' in st.session_state:
+                        style_options['audience'] = st.session_state.audience
+                    
+                    # Free form style options
+                    if 'writing_style' in st.session_state and st.session_state.writing_style:
+                        style_options['writing_style'] = st.session_state.writing_style
+                    
+                    if 'language_style' in st.session_state and st.session_state.language_style:
+                        style_options['language_style'] = st.session_state.language_style
+                    
+                    if 'sentence_structure' in st.session_state and st.session_state.sentence_structure:
+                        style_options['sentence_structure'] = st.session_state.sentence_structure
+                    
+                    if 'emotional_tone' in st.session_state and st.session_state.emotional_tone:
+                        style_options['emotional_tone'] = st.session_state.emotional_tone
+                    
+                    if 'custom_guidance' in st.session_state and st.session_state.custom_guidance:
+                        style_options['custom_guidance'] = st.session_state.custom_guidance
+                except Exception as e:
+                    st.warning(f"Note: Not all customization options could be applied. {str(e)}")
+                    # Continue with whatever options were successfully retrieved
                 
                 # Generate the blog post with style options
                 blog_post = generate_blog_post(
@@ -564,26 +581,58 @@ def main():
             # Blog customization options
             if generate_blog:
                 with st.expander("Blog Customization Options", expanded=False):
+                    # Initialize session state for all customization options
+                    if 'model' not in st.session_state:
+                        st.session_state.model = "gpt-4o"
+                    if 'temperature' not in st.session_state:
+                        st.session_state.temperature = 0.7
+                    if 'tone' not in st.session_state:
+                        st.session_state.tone = "Professional"
+                    if 'mood' not in st.session_state:
+                        st.session_state.mood = "Elegant"
+                    if 'intro_theme' not in st.session_state:
+                        st.session_state.intro_theme = "Elegant Opening"
+                    if 'conclusion_theme' not in st.session_state:
+                        st.session_state.conclusion_theme = "Standard Closing"
+                    if 'section_count' not in st.session_state:
+                        st.session_state.section_count = "Default (3-4)"
+                    if 'title_style' not in st.session_state:
+                        st.session_state.title_style = "Descriptive"
+                    if 'audience' not in st.session_state:
+                        st.session_state.audience = "Modern Couples"
+                    if 'writing_style' not in st.session_state:
+                        st.session_state.writing_style = ""
+                    if 'language_style' not in st.session_state:
+                        st.session_state.language_style = ""
+                    if 'sentence_structure' not in st.session_state:
+                        st.session_state.sentence_structure = ""
+                    if 'emotional_tone' not in st.session_state:
+                        st.session_state.emotional_tone = ""
+                    if 'custom_guidance' not in st.session_state:
+                        st.session_state.custom_guidance = ""
+                    
                     # Model selection
                     st.subheader("AI Model Settings")
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        model = st.selectbox(
+                        st.session_state.model = st.selectbox(
                             "AI Model",
                             ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-                            index=0,
-                            help="Select which OpenAI model to use for content generation"
+                            index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"].index(st.session_state.model),
+                            help="Select which OpenAI model to use for content generation",
+                            key="model_selectbox"
                         )
                     
                     with col2:
-                        temperature = st.slider(
+                        st.session_state.temperature = st.slider(
                             "Creativity Level", 
                             min_value=0.0, 
                             max_value=1.0, 
-                            value=0.7, 
+                            value=st.session_state.temperature, 
                             step=0.1,
-                            help="Higher values make output more creative, lower values make it more predictable"
+                            help="Higher values make output more creative, lower values make it more predictable",
+                            key="temperature_slider"
                         )
                     
                     # Style options
@@ -593,104 +642,233 @@ def main():
                     with col1:
                         # Tone options with custom option
                         tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
-                        tone = st.selectbox(
+                        tone_index = 0
+                        if st.session_state.tone in tone_options:
+                            tone_index = tone_options.index(st.session_state.tone)
+                        
+                        selected_tone = st.selectbox(
                             "Tone",
                             tone_options,
-                            index=0
+                            index=tone_index,
+                            key="tone_selectbox"
                         )
                         
-                        if tone == "Custom":
-                            custom_tone = st.text_input("Custom tone", 
-                                placeholder="e.g., 'Friendly yet professional'")
-                            tone = custom_tone if custom_tone else "Professional"
+                        # Handle custom tone input
+                        if selected_tone == "Custom":
+                            custom_tone = st.text_input(
+                                "Custom tone", 
+                                value="" if st.session_state.tone not in tone_options else st.session_state.tone,
+                                placeholder="e.g., 'Friendly yet professional'",
+                                key="custom_tone_input"
+                            )
+                            st.session_state.tone = custom_tone if custom_tone else "Professional"
+                        else:
+                            st.session_state.tone = selected_tone
                         
                         # Introduction theme
                         intro_options = ["Elegant Opening", "Wedding Story", "Music Importance", "Playlist Introduction", "Custom"]
-                        intro_theme = st.selectbox(
+                        intro_index = 0
+                        if st.session_state.intro_theme in intro_options:
+                            intro_index = intro_options.index(st.session_state.intro_theme)
+                        
+                        selected_intro = st.selectbox(
                             "Introduction Theme",
                             intro_options,
-                            index=0
+                            index=intro_index,
+                            key="intro_selectbox"
                         )
                         
-                        if intro_theme == "Custom":
-                            custom_intro = st.text_input("Custom introduction theme", 
-                                placeholder="e.g., 'Start with a quote about music'")
-                            intro_theme = custom_intro if custom_intro else "Elegant Opening"
+                        # Handle custom intro input
+                        if selected_intro == "Custom":
+                            custom_intro = st.text_input(
+                                "Custom introduction theme", 
+                                value="" if st.session_state.intro_theme not in intro_options else st.session_state.intro_theme,
+                                placeholder="e.g., 'Start with a quote about music'",
+                                key="custom_intro_input"
+                            )
+                            st.session_state.intro_theme = custom_intro if custom_intro else "Elegant Opening"
+                        else:
+                            st.session_state.intro_theme = selected_intro
                     
                     with col2:
                         # Mood options
                         mood_options = ["Elegant", "Fun", "Emotional", "Energetic", "Romantic", "Nostalgic", "Custom"]
-                        mood = st.selectbox(
+                        mood_index = 0
+                        if st.session_state.mood in mood_options:
+                            mood_index = mood_options.index(st.session_state.mood)
+                        
+                        selected_mood = st.selectbox(
                             "Mood",
                             mood_options,
-                            index=0
+                            index=mood_index,
+                            key="mood_selectbox"
                         )
                         
-                        if mood == "Custom":
-                            custom_mood = st.text_input("Custom mood", 
-                                placeholder="e.g., 'Sophisticated with a touch of whimsy'")
-                            mood = custom_mood if custom_mood else "Elegant"
+                        # Handle custom mood input
+                        if selected_mood == "Custom":
+                            custom_mood = st.text_input(
+                                "Custom mood", 
+                                value="" if st.session_state.mood not in mood_options else st.session_state.mood,
+                                placeholder="e.g., 'Sophisticated with a touch of whimsy'",
+                                key="custom_mood_input"
+                            )
+                            st.session_state.mood = custom_mood if custom_mood else "Elegant"
+                        else:
+                            st.session_state.mood = selected_mood
                         
                         # Conclusion theme
                         conclusion_options = ["Standard Closing", "Planning Tips", "Guest Experience", "DJ Perspective", "Custom"]
-                        conclusion_theme = st.selectbox(
+                        conclusion_index = 0
+                        if st.session_state.conclusion_theme in conclusion_options:
+                            conclusion_index = conclusion_options.index(st.session_state.conclusion_theme)
+                        
+                        selected_conclusion = st.selectbox(
                             "Conclusion Theme",
                             conclusion_options,
-                            index=0
+                            index=conclusion_index,
+                            key="conclusion_selectbox"
                         )
                         
-                        if conclusion_theme == "Custom":
-                            custom_conclusion = st.text_input("Custom conclusion theme", 
-                                placeholder="e.g., 'End with planning tips'")
-                            conclusion_theme = custom_conclusion if custom_conclusion else "Standard Closing"
+                        # Handle custom conclusion input
+                        if selected_conclusion == "Custom":
+                            custom_conclusion = st.text_input(
+                                "Custom conclusion theme", 
+                                value="" if st.session_state.conclusion_theme not in conclusion_options else st.session_state.conclusion_theme,
+                                placeholder="e.g., 'End with planning tips'",
+                                key="custom_conclusion_input"
+                            )
+                            st.session_state.conclusion_theme = custom_conclusion if custom_conclusion else "Standard Closing"
+                        else:
+                            st.session_state.conclusion_theme = selected_conclusion
                     
                     # Section count with dropdown and custom
                     section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
-                    section_count = st.selectbox(
+                    section_index = 0
+                    if st.session_state.section_count in section_count_options:
+                        section_index = section_count_options.index(st.session_state.section_count)
+                    
+                    selected_section_count = st.selectbox(
                         "Content Sections",
                         section_count_options,
-                        index=0
+                        index=section_index,
+                        key="section_count_selectbox"
                     )
                     
-                    if section_count == "Custom":
-                        custom_section_count = st.text_input("Custom section count", 
-                            placeholder="e.g., '3 focused sections'")
-                        section_count = custom_section_count if custom_section_count else "Default (3-4)"
+                    # Handle custom section count input
+                    if selected_section_count == "Custom":
+                        custom_section_count = st.text_input(
+                            "Custom section count", 
+                            value="" if st.session_state.section_count not in section_count_options else st.session_state.section_count,
+                            placeholder="e.g., '3 focused sections'",
+                            key="custom_section_count_input"
+                        )
+                        st.session_state.section_count = custom_section_count if custom_section_count else "Default (3-4)"
+                    else:
+                        st.session_state.section_count = selected_section_count
                     
-                    # Advanced options
-                    with st.expander("Advanced Customization"):
-                        # Title style options
-                        title_style_options = ["Descriptive", "Short", "Playful", "Elegant", "Question", "Custom"]
-                        title_style = st.selectbox(
-                            "Section Title Style",
-                            title_style_options,
-                            index=0
+                    # Advanced options section (not an expander to avoid nesting issues)
+                    st.subheader("Advanced Customization")
+                    
+                    # Title style options
+                    title_style_options = ["Descriptive", "Short", "Playful", "Elegant", "Question", "Custom"]
+                    title_index = 0
+                    if st.session_state.title_style in title_style_options:
+                        title_index = title_style_options.index(st.session_state.title_style)
+                    
+                    selected_title_style = st.selectbox(
+                        "Section Title Style",
+                        title_style_options,
+                        index=title_index,
+                        key="title_style_selectbox"
+                    )
+                    
+                    # Handle custom title style input
+                    if selected_title_style == "Custom":
+                        custom_title = st.text_input(
+                            "Custom title style", 
+                            value="" if st.session_state.title_style not in title_style_options else st.session_state.title_style,
+                            placeholder="e.g., 'Alliterative and punchy'",
+                            key="custom_title_style_input"
+                        )
+                        st.session_state.title_style = custom_title if custom_title else "Descriptive"
+                    else:
+                        st.session_state.title_style = selected_title_style
+                    
+                    # Target audience options
+                    audience_options = ["Modern Couples", "Traditional Couples", "Brides", "Grooms", "Parents", "All Couples", "Custom"]
+                    audience_index = 0
+                    if st.session_state.audience in audience_options:
+                        audience_index = audience_options.index(st.session_state.audience)
+                    
+                    selected_audience = st.selectbox(
+                        "Target Audience",
+                        audience_options,
+                        index=audience_index,
+                        key="audience_selectbox"
+                    )
+                    
+                    # Handle custom audience input
+                    if selected_audience == "Custom":
+                        custom_audience = st.text_input(
+                            "Custom target audience", 
+                            value="" if st.session_state.audience not in audience_options else st.session_state.audience,
+                            placeholder="e.g., 'Music-loving couples'",
+                            key="custom_audience_input"
+                        )
+                        st.session_state.audience = custom_audience if custom_audience else "Modern Couples"
+                    else:
+                        st.session_state.audience = selected_audience
+                    
+                    # Free form style options
+                    st.subheader("Free-Form Style Options")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Free-form writing style
+                        st.session_state.writing_style = st.text_input(
+                            "Writing Style",
+                            value=st.session_state.writing_style,
+                            placeholder="e.g., Elegant and poetic, Modern and trendy",
+                            help="Describe the writing style you want the AI to use",
+                            key="writing_style_input"
                         )
                         
-                        if title_style == "Custom":
-                            custom_title = st.text_input("Custom title style", 
-                                placeholder="e.g., 'Alliterative and punchy'")
-                            title_style = custom_title if custom_title else "Descriptive"
-                        
-                        # Target audience options
-                        audience_options = ["Modern Couples", "Traditional Couples", "Brides", "Grooms", "Parents", "All Couples", "Custom"]
-                        audience = st.selectbox(
-                            "Target Audience",
-                            audience_options,
-                            index=0
+                        # Free-form language style
+                        st.session_state.language_style = st.text_input(
+                            "Language Style",
+                            value=st.session_state.language_style,
+                            placeholder="e.g., Sophisticated vocabulary, Simple and clear",
+                            help="Describe how complex or simple the language should be",
+                            key="language_style_input"
+                        )
+                    
+                    with col2:
+                        # Free-form sentence structure
+                        st.session_state.sentence_structure = st.text_input(
+                            "Sentence Structure",
+                            value=st.session_state.sentence_structure,
+                            placeholder="e.g., Varied length, Short and punchy",
+                            help="Describe the desired sentence structure and flow",
+                            key="sentence_structure_input"
                         )
                         
-                        if audience == "Custom":
-                            custom_audience = st.text_input("Custom target audience", 
-                                placeholder="e.g., 'Music-loving couples'")
-                            audience = custom_audience if custom_audience else "Modern Couples"
-                        
-                        # Custom guidance
-                        custom_guidance = st.text_area(
-                            "Additional Style Guidance (Optional)",
-                            placeholder="Add any additional style guidance or specific requests for the AI blog writer",
-                            height=100
+                        # Free-form emotional tone
+                        st.session_state.emotional_tone = st.text_input(
+                            "Emotional Tone",
+                            value=st.session_state.emotional_tone,
+                            placeholder="e.g., Heartfelt, Exciting, Calm and peaceful",
+                            help="Describe the emotional feeling you want the blog to convey",
+                            key="emotional_tone_input"
                         )
+                    
+                    # Custom guidance
+                    st.session_state.custom_guidance = st.text_area(
+                        "Additional Style Guidance (Optional)",
+                        value=st.session_state.custom_guidance,
+                        placeholder="Add any additional style guidance or specific requests for the AI blog writer",
+                        height=100,
+                        key="custom_guidance_textarea"
+                    )
             
             # Process button
             if selected_playlists:
