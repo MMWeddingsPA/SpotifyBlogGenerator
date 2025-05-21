@@ -280,11 +280,46 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                 # Clean the playlist name for the blog post (remove numeric prefix)
                 clean_name = clean_playlist_name_for_blog(playlist)
                 
-                # Generate the blog post
+                # Get blog customization options if they were provided
+                style_options = {}
+                
+                # Check if the customization variables are in the current context
+                if 'model' in locals():
+                    style_options['model'] = model
+                
+                if 'temperature' in locals():
+                    style_options['temperature'] = temperature
+                
+                if 'tone' in locals():
+                    style_options['tone'] = tone
+                
+                if 'mood' in locals():
+                    style_options['mood'] = mood
+                
+                if 'intro_theme' in locals():
+                    style_options['intro_theme'] = intro_theme
+                
+                if 'conclusion_theme' in locals():
+                    style_options['conclusion_theme'] = conclusion_theme
+                
+                if 'section_count' in locals():
+                    style_options['section_count'] = section_count
+                
+                if 'title_style' in locals():
+                    style_options['title_style'] = title_style
+                
+                if 'audience' in locals():
+                    style_options['audience'] = audience
+                
+                if 'custom_guidance' in locals() and custom_guidance:
+                    style_options['custom_guidance'] = custom_guidance
+                
+                # Generate the blog post with style options
                 blog_post = generate_blog_post(
                     playlist_name=clean_name,
                     songs_df=playlist_df,
-                    spotify_link=spotify_link
+                    spotify_link=spotify_link,
+                    style_options=style_options
                 )
                 results['blog_post'] = blog_post
                 
@@ -525,6 +560,137 @@ def main():
                 fetch_spotify = st.checkbox("Fetch Spotify Playlist", value=True)
             with col3:
                 generate_blog = st.checkbox("Generate Blog Post", value=True)
+            
+            # Blog customization options
+            if generate_blog:
+                with st.expander("Blog Customization Options", expanded=False):
+                    # Model selection
+                    st.subheader("AI Model Settings")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        model = st.selectbox(
+                            "AI Model",
+                            ["gpt-4o", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+                            index=0,
+                            help="Select which OpenAI model to use for content generation"
+                        )
+                    
+                    with col2:
+                        temperature = st.slider(
+                            "Creativity Level", 
+                            min_value=0.0, 
+                            max_value=1.0, 
+                            value=0.7, 
+                            step=0.1,
+                            help="Higher values make output more creative, lower values make it more predictable"
+                        )
+                    
+                    # Style options
+                    st.subheader("Blog Style Options")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Tone options with custom option
+                        tone_options = ["Professional", "Conversational", "Romantic", "Upbeat", "Elegant", "Playful", "Custom"]
+                        tone = st.selectbox(
+                            "Tone",
+                            tone_options,
+                            index=0
+                        )
+                        
+                        if tone == "Custom":
+                            custom_tone = st.text_input("Custom tone", 
+                                placeholder="e.g., 'Friendly yet professional'")
+                            tone = custom_tone if custom_tone else "Professional"
+                        
+                        # Introduction theme
+                        intro_options = ["Elegant Opening", "Wedding Story", "Music Importance", "Playlist Introduction", "Custom"]
+                        intro_theme = st.selectbox(
+                            "Introduction Theme",
+                            intro_options,
+                            index=0
+                        )
+                        
+                        if intro_theme == "Custom":
+                            custom_intro = st.text_input("Custom introduction theme", 
+                                placeholder="e.g., 'Start with a quote about music'")
+                            intro_theme = custom_intro if custom_intro else "Elegant Opening"
+                    
+                    with col2:
+                        # Mood options
+                        mood_options = ["Elegant", "Fun", "Emotional", "Energetic", "Romantic", "Nostalgic", "Custom"]
+                        mood = st.selectbox(
+                            "Mood",
+                            mood_options,
+                            index=0
+                        )
+                        
+                        if mood == "Custom":
+                            custom_mood = st.text_input("Custom mood", 
+                                placeholder="e.g., 'Sophisticated with a touch of whimsy'")
+                            mood = custom_mood if custom_mood else "Elegant"
+                        
+                        # Conclusion theme
+                        conclusion_options = ["Standard Closing", "Planning Tips", "Guest Experience", "DJ Perspective", "Custom"]
+                        conclusion_theme = st.selectbox(
+                            "Conclusion Theme",
+                            conclusion_options,
+                            index=0
+                        )
+                        
+                        if conclusion_theme == "Custom":
+                            custom_conclusion = st.text_input("Custom conclusion theme", 
+                                placeholder="e.g., 'End with planning tips'")
+                            conclusion_theme = custom_conclusion if custom_conclusion else "Standard Closing"
+                    
+                    # Section count with dropdown and custom
+                    section_count_options = ["Default (3-4)", "Minimal (2-3)", "Comprehensive (4-5)", "Detailed (5-6)", "Custom"]
+                    section_count = st.selectbox(
+                        "Content Sections",
+                        section_count_options,
+                        index=0
+                    )
+                    
+                    if section_count == "Custom":
+                        custom_section_count = st.text_input("Custom section count", 
+                            placeholder="e.g., '3 focused sections'")
+                        section_count = custom_section_count if custom_section_count else "Default (3-4)"
+                    
+                    # Advanced options
+                    with st.expander("Advanced Customization"):
+                        # Title style options
+                        title_style_options = ["Descriptive", "Short", "Playful", "Elegant", "Question", "Custom"]
+                        title_style = st.selectbox(
+                            "Section Title Style",
+                            title_style_options,
+                            index=0
+                        )
+                        
+                        if title_style == "Custom":
+                            custom_title = st.text_input("Custom title style", 
+                                placeholder="e.g., 'Alliterative and punchy'")
+                            title_style = custom_title if custom_title else "Descriptive"
+                        
+                        # Target audience options
+                        audience_options = ["Modern Couples", "Traditional Couples", "Brides", "Grooms", "Parents", "All Couples", "Custom"]
+                        audience = st.selectbox(
+                            "Target Audience",
+                            audience_options,
+                            index=0
+                        )
+                        
+                        if audience == "Custom":
+                            custom_audience = st.text_input("Custom target audience", 
+                                placeholder="e.g., 'Music-loving couples'")
+                            audience = custom_audience if custom_audience else "Modern Couples"
+                        
+                        # Custom guidance
+                        custom_guidance = st.text_area(
+                            "Additional Style Guidance (Optional)",
+                            placeholder="Add any additional style guidance or specific requests for the AI blog writer",
+                            height=100
+                        )
             
             # Process button
             if selected_playlists:
