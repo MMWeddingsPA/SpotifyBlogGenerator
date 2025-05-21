@@ -1848,7 +1848,7 @@ def main():
                         value=st.session_state.wp_edit_guidance,
                         placeholder="Add any specific style instructions or requirements for the revamped blog post",
                         height=100,
-                        key="wp_edit_guidance_input"
+                        key="wp_edit_guidance_input_1"
                     )
                     st.session_state.wp_edit_guidance = guidance
                     
@@ -2111,7 +2111,7 @@ def main():
                         value=st.session_state.wp_edit_guidance,
                         placeholder="Add any specific style instructions or requirements for the revamped blog post",
                         height=100,
-                        key="wp_edit_guidance_input"
+                        key="wp_edit_guidance_input_2"
                     )
                     st.session_state.wp_edit_guidance = guidance
                     
@@ -2384,7 +2384,7 @@ def main():
                         value=st.session_state.wp_edit_guidance,
                         placeholder="Add any specific style instructions or requirements for the revamped blog post",
                         height=100,
-                        key="wp_edit_guidance_input"
+                        key="wp_edit_guidance_input_3"
                     )
                     st.session_state.wp_edit_guidance = guidance
                     
