@@ -1271,16 +1271,30 @@ def main():
                             break
                     
                     if selected_post:
-                        # Show post details
-                        post_title = selected_post.get('title', {}).get('rendered', 'Untitled')
-                        post_date = selected_post.get('date', '').split('T')[0]
+                        # Handle post title (could be string or dict with rendered property)
+                        post_title = selected_post.get('title', '')
+                        if isinstance(post_title, dict) and 'rendered' in post_title:
+                            post_title = post_title.get('rendered', 'Untitled')
+                        elif not isinstance(post_title, str):
+                            post_title = 'Untitled'
+                            
+                        # Handle post date
+                        post_date = selected_post.get('date', '')
+                        if post_date and isinstance(post_date, str):
+                            post_date = post_date.split('T')[0] if 'T' in post_date else post_date
                         
                         st.write(f"**Selected Post:** {post_title}")
                         st.write(f"**Date Published:** {post_date}")
                         
                         # Preview button
                         if st.button("👁️ Preview Post", key="wordpress_preview_button"):
-                            post_content = selected_post.get('content', {}).get('rendered', 'No content available')
+                            # Handle post content (could be string or dict with rendered property)
+                            post_content = selected_post.get('content', '')
+                            if isinstance(post_content, dict) and 'rendered' in post_content:
+                                post_content = post_content.get('rendered', 'No content available')
+                            elif not isinstance(post_content, str):
+                                post_content = 'No content available'
+                                
                             with st.expander("Post Content", expanded=True):
                                 st.markdown(post_content, unsafe_allow_html=True)
                         
@@ -1288,7 +1302,7 @@ def main():
                         if st.button("✅ Confirm Selection", key="wordpress_confirm_button"):
                             st.session_state.wp_selected_post = selected_post
                             st.session_state.wp_post_confirmed = True
-                            st.success(f"Post '{post_title}' selected for revamping!")
+                            st.success(f"Post '{post_title}' selected for revamping! You can now customize the revamped content below.")
                             # Rather than rerun here (which can cause issues), we'll let the page refresh naturally
             
             # Stage 2: Post Customization and Revamp (only if post is confirmed)
