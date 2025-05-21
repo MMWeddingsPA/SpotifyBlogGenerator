@@ -511,7 +511,7 @@ def main():
             st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables")
     
     # Create tabs for different functions
-    tab1, tab2, tab3 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts", "WordPress Revamp"])
     
     # Auto-load the latest CSV if available
     if st.session_state.df is None:
