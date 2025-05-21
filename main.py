@@ -1616,36 +1616,15 @@ def main():
                                         key="wp_status_select"
                                     )
                                 
-                                # Posting actions
-                                    col1, col2 = st.columns(2)
+                                    # Posting actions
+                                    # Use 3 columns for buttons
+                                    col1, col2, col3 = st.columns(3)
                                     
                                     with col1:
-                                        # Save to file
-                                        if st.button("💾 Save to File", key="wp_revamp_save_file"):
-                                            with st.spinner("Saving blog post to file..."):
-                                                try:
-                                                    # Clean title for filename
-                                                    clean_title = re.sub(r'[^\w\s-]', '', post_title).strip().replace(' ', '-')
-                                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                                    filename = f"blogs/{clean_title}_{timestamp}.html"
-                                                    
-                                                    # Create blogs directory if it doesn't exist
-                                                    os.makedirs("blogs", exist_ok=True)
-                                                    
-                                                    # Save to file
-                                                    with open(filename, "w") as f:
-                                                        f.write(revamped_content)
-                                                    
-                                                    st.success(f"✅ Revamped blog post saved to {filename}")
-                                                except Exception as e:
-                                                    st.error(f"❌ Error saving blog post: {str(e)}")
-                                    
-                                    with col2:
                                         # Post to WordPress
-                                        if st.button("🚀 Post to WordPress", key="wp_revamp_post_wp"):
+                                        if st.button("🚀 Post to WordPress", key="wp_post_button"):
                                             with st.spinner("Creating post in WordPress..."):
                                                 try:
-                                                    # Post to WordPress
                                                     result = wordpress_api.create_post(
                                                         title=new_title,
                                                         content=revamped_content,
@@ -1653,74 +1632,43 @@ def main():
                                                     )
                                                     
                                                     if result.get('success'):
-                                                        post_id = result.get('post_id')
-                                                        post_url = result.get('post_url')
-                                                        edit_url = result.get('edit_url')
-                                                        
-                                                        st.success(f"✅ Post created successfully! ID: {post_id}")
-                                                        
-                                                        # Create markdown links to view/edit post
-                                                        st.markdown(f"[View Post]({post_url}) | [Edit on WordPress]({edit_url})")
+                                                        st.success(f"✅ Post created successfully! ID: {result.get('post_id')}")
+                                                        if result.get('edit_url'):
+                                                            st.markdown(f"[View/Edit Post on WordPress]({result.get('edit_url')})")
                                                     else:
                                                         st.error(f"❌ Failed to create post: {result.get('error')}")
                                                 except Exception as e:
-                                                    st.error(f"❌ Error posting to WordPress: {str(e)}")
+                                                    st.error(f"❌ Error creating post: {str(e)}")
+                                    
+                                    with col2:
+                                        # Save locally
+                                        if st.button("💾 Save Locally", key="wp_save_local_button"):
+                                            try:
+                                                filename = save_blog_post(
+                                                    playlist_name=f"Revamped-{post_id}",
+                                                    blog_content=revamped_content,
+                                                    title=new_title
+                                                )
+                                                st.success(f"✅ Revamped blog post saved to {filename}")
+                                            except Exception as e:
+                                                st.error(f"❌ Error saving blog post: {str(e)}")
+                                    
+                                    with col3:
+                                        # Save for editing in WordPress Edit tab
+                                        if st.button("✏️ Save for Editing", key="wp_save_for_edit_button"):
+                                            try:
+                                                # Save the post data and revamped content for editing
+                                                original_post = st.session_state.wp_selected_post
+                                                filepath = save_wordpress_post(
+                                                    post_data=original_post,
+                                                    post_content=revamped_content
+                                                )
+                                                st.success(f"✅ Post saved for editing! Go to the WordPress Edit tab to continue.")
+                                            except Exception as e:
+                                                st.error(f"❌ Error saving post for editing: {str(e)}")
                                 except Exception as e:
                                     st.error(f"❌ Error revamping blog post: {str(e)}")
                                     st.error(traceback.format_exc())
-                                
-                                # Posting actions
-                                col1, col2, col3 = st.columns(3)
-                                with col1:
-                                    # Post to WordPress
-                                    if st.button("🚀 Post to WordPress", key="wp_post_button"):
-                                        with st.spinner("Creating post in WordPress..."):
-                                            try:
-                                                result = wordpress_api.create_post(
-                                                    title=new_title,
-                                                    content=revamped_content,
-                                                    status=status
-                                                )
-                                                
-                                                if result.get('success'):
-                                                    st.success(f"✅ Post created successfully! ID: {result.get('post_id')}")
-                                                    if result.get('edit_url'):
-                                                        st.markdown(f"[View/Edit Post on WordPress]({result.get('edit_url')})")
-                                                else:
-                                                    st.error(f"❌ Failed to create post: {result.get('error')}")
-                                            except Exception as e:
-                                                st.error(f"❌ Error creating post: {str(e)}")
-                                
-                                with col2:
-                                    # Save locally
-                                    if st.button("💾 Save Locally", key="wp_save_local_button"):
-                                        try:
-                                            filename = save_blog_post(
-                                                playlist_name=f"Revamped-{post_id}",
-                                                blog_content=revamped_content,
-                                                title=new_title
-                                            )
-                                            st.success(f"✅ Revamped blog post saved to {filename}")
-                                        except Exception as e:
-                                            st.error(f"❌ Error saving blog post: {str(e)}")
-                                
-                                with col3:
-                                    # Save for editing in WordPress Edit tab
-                                    if st.button("✏️ Save for Editing", key="wp_save_for_edit_button"):
-                                        try:
-                                            # Save the post data and revamped content for editing
-                                            original_post = st.session_state.wp_selected_post
-                                            filepath = save_wordpress_post(
-                                                post_data=original_post,
-                                                post_content=revamped_content
-                                            )
-                                            st.success(f"✅ Post saved for editing! Go to the WordPress Edit tab to continue.")
-                                        except Exception as e:
-                                            st.error(f"❌ Error saving post for editing: {str(e)}")
-                            
-                            except Exception as e:
-                                st.error(f"❌ Error revamping blog post: {str(e)}")
-                                st.error(traceback.format_exc())
     
     # Tab 5: WordPress Edit
     with tab5:
