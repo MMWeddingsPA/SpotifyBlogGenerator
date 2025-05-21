@@ -572,7 +572,7 @@ def main():
             st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables")
     
     # Create tabs for different functions
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts", "WordPress Revamp", "WordPress Edit"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts", "WordPress Revamp"])
     
     # Auto-load the latest CSV if available
     if st.session_state.df is None:
@@ -1707,10 +1707,6 @@ def main():
                             except Exception as e:
                                 st.error(f"❌ Error revamping blog post: {str(e)}")
                                 st.error(traceback.format_exc())
-
-    # Tab 5: WordPress Edit
-    with tab5:
-        st.subheader("Edit Saved WordPress Posts")
         
         # List all saved WordPress posts
         saved_posts = list_wordpress_posts()
