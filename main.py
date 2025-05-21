@@ -572,7 +572,7 @@ def main():
             st.info("WordPress connection requires WORDPRESS_API_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD environment variables")
     
     # Create tabs for different functions
-    tab1, tab2, tab3, tab4 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts", "WordPress Revamp"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Process Playlists", "Edit CSV Data", "Saved Blog Posts", "WordPress Revamp", "WordPress Edit"])
     
     # Auto-load the latest CSV if available
     if st.session_state.df is None:
@@ -1534,9 +1534,25 @@ def main():
                     )
                     st.session_state.wp_revamp_guidance = guidance
                     
-                    # Revamp button
-                    if st.button("✨ Revamp Blog Post", key="wp_revamp_button"):
-                        with st.spinner("Revamping blog post content..."):
+                    # Save for editing button (add alongside revamp button)
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("💾 Save for Editing Later", key="wp_save_for_edit_button"):
+                            # Extract content properly
+                            post_content = selected_post.get('content', '')
+                            if isinstance(post_content, dict) and 'rendered' in post_content:
+                                post_content = post_content.get('rendered', '')
+                            elif not isinstance(post_content, str):
+                                post_content = ''
+                                
+                            # Save post data
+                            saved_path = save_wordpress_post(selected_post, post_content)
+                            st.success(f"Post '{post_title}' saved for editing! Go to the WordPress Edit tab to edit it.")
+                    
+                    with col2:
+                        # Revamp button
+                        if st.button("✨ Revamp Blog Post", key="wp_revamp_button"):
+                            with st.spinner("Revamping blog post content..."):
                             try:
                                 # Get post content with proper handling for different formats
                                 post_content = selected_post.get('content', '')
