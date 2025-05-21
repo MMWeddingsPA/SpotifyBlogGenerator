@@ -114,10 +114,71 @@ def save_blog_post(playlist_name, blog_content, title):
     filename = f"blogs/{clean_name}_{timestamp}.html"
     
     # Save blog as HTML with title
-    with open(filename, "w") as f:
+    with open(filename, 'w', encoding='utf-8') as f:
         f.write(f"<h1>{title}</h1>\n\n{blog_content}")
     
     return filename
+    
+def save_wordpress_post(post_data, post_content=None):
+    """Save selected WordPress post for editing
+    
+    Args:
+        post_data: The post data from WordPress API
+        post_content: Optional processed content if available
+    """
+    # Create wordpress_posts directory if it doesn't exist
+    if not os.path.exists("wordpress_posts"):
+        os.makedirs("wordpress_posts")
+    
+    # Handle different title formats
+    post_title = post_data.get('title', '')
+    if isinstance(post_title, dict) and 'rendered' in post_title:
+        post_title = post_title.get('rendered', 'Untitled')
+    elif not isinstance(post_title, str):
+        post_title = 'Untitled'
+    
+    # Clean the title for use in filename
+    clean_title = "".join([c if c.isalnum() or c.isspace() else "_" for c in post_title]).strip()
+    post_id = post_data.get('id', 'unknown_id')
+    
+    # Format post information for storage
+    post_info = {
+        'id': post_id,
+        'title': post_title,
+        'post_data': post_data,
+        'saved_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'processed_content': post_content
+    }
+    
+    # Save to file
+    filename = f"{clean_title}_{post_id}.json"
+    filepath = os.path.join("wordpress_posts", filename)
+    with open(filepath, 'w') as f:
+        json.dump(post_info, f, indent=2, default=str)
+    
+    return filepath
+
+def list_wordpress_posts():
+    """List all saved WordPress posts from the wordpress_posts directory"""
+    if not os.path.exists("wordpress_posts"):
+        return []
+    
+    posts = []
+    for filename in os.listdir("wordpress_posts"):
+        if filename.endswith(".json"):
+            filepath = os.path.join("wordpress_posts", filename)
+            try:
+                with open(filepath, 'r') as f:
+                    post_info = json.load(f)
+                    # Add filepath to the post info
+                    post_info['filepath'] = filepath
+                    posts.append(post_info)
+            except Exception as e:
+                print(f"Error loading {filepath}: {str(e)}")
+    
+    # Sort by saved_at date (newest first)
+    posts.sort(key=lambda x: x.get('saved_at', ''), reverse=True)
+    return posts
 
 def find_saved_blog_posts():
     """Find all saved blog posts in the blogs directory"""
