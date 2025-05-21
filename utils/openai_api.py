@@ -137,7 +137,25 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None, style_optio
         logger.info(f"Extracted Spotify playlist ID: {spotify_playlist_id}")
     
     # Clean the content by removing HTML tags to get plain text for analysis
-    plain_content = trafilatura.extract(post_content)
+    try:
+        plain_content = trafilatura.extract(post_content)
+        if plain_content is None:
+            # Fallback if trafilatura extraction fails
+            # Use regex to strip HTML tags as a backup
+            logger.info("Trafilatura extraction returned None. Using regex fallback to clean HTML.")
+            import re
+            plain_content = re.sub(r'<[^>]+>', ' ', post_content)
+            # Remove extra whitespace
+            plain_content = re.sub(r'\s+', ' ', plain_content).strip()
+            
+            # If still empty, use post_content directly with a warning
+            if not plain_content or plain_content.isspace():
+                plain_content = post_content
+                logger.warning("Fallback HTML cleaning resulted in empty content. Using raw content.")
+    except Exception as e:
+        logger.warning(f"Error extracting plain text from HTML: {str(e)}")
+        # Failsafe - use the original content if extraction fails
+        plain_content = post_content
     
     # Fetch YouTube links for songs if they're missing and YouTube API is provided
     if youtube_api and songs:
@@ -197,7 +215,7 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None, style_optio
     Original Post Title: {post_title}
     
     Original Post Content (plain text for reference):
-    {plain_content[:3000]}  # Limit content length to avoid token limits
+    {plain_content[:3000] if plain_content else "No plain text content available"}
     
     Extracted Songs:
     {songs_list}
