@@ -1750,7 +1750,7 @@ def main():
                             "AI Model",
                             ["gpt-4o", "gpt-4.1", "gpt-4.1-mini"],
                             index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini"].index(st.session_state.wp_edit_model),
-                            key="wp_edit_model_select"
+                            key="wp_edit_model_select_1"
                         )
                         st.session_state.wp_edit_model = model
                     
@@ -2013,7 +2013,7 @@ def main():
                             "AI Model",
                             ["gpt-4o", "gpt-4.1", "gpt-4.1-mini"],
                             index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini"].index(st.session_state.wp_edit_model),
-                            key="wp_edit_model_select"
+                            key="wp_edit_model_select_2"
                         )
                         st.session_state.wp_edit_model = model
                     
@@ -2286,7 +2286,7 @@ def main():
                             "AI Model",
                             ["gpt-4o", "gpt-4.1", "gpt-4.1-mini"],
                             index=["gpt-4o", "gpt-4.1", "gpt-4.1-mini"].index(st.session_state.wp_edit_model),
-                            key="wp_edit_model_select"
+                            key="wp_edit_model_select_3"
                         )
                         st.session_state.wp_edit_model = model
                     
