@@ -1761,7 +1761,7 @@ def main():
                             max_value=1.0,
                             value=st.session_state.wp_edit_temp,
                             step=0.1,
-                            key="wp_edit_temp_slider"
+                            key="wp_edit_temp_slider_1"
                         )
                         st.session_state.wp_edit_temp = temp
                     
@@ -2024,7 +2024,7 @@ def main():
                             max_value=1.0,
                             value=st.session_state.wp_edit_temp,
                             step=0.1,
-                            key="wp_edit_temp_slider"
+                            key="wp_edit_temp_slider_2"
                         )
                         st.session_state.wp_edit_temp = temp
                     
@@ -2297,7 +2297,7 @@ def main():
                             max_value=1.0,
                             value=st.session_state.wp_edit_temp,
                             step=0.1,
-                            key="wp_edit_temp_slider"
+                            key="wp_edit_temp_slider_3"
                         )
                         st.session_state.wp_edit_temp = temp
                     
