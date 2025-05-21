@@ -1701,7 +1701,7 @@ def main():
                 "Select a saved post to edit:",
                 options=post_options,
                 format_func=lambda x: post_display.get(x, f"Post: {x}"),
-                key="wordpress_edit_select"
+                key="wordpress_edit_select_1"
             )
             
             # Load selected post
@@ -1964,7 +1964,7 @@ def main():
                 "Select a saved post to edit:",
                 options=post_options,
                 format_func=lambda x: post_display.get(x, f"Post: {x}"),
-                key="wordpress_edit_select"
+                key="wordpress_edit_select_2"
             )
             
             # Load selected post
@@ -2237,7 +2237,7 @@ def main():
                 "Select a saved post to edit:",
                 options=post_options,
                 format_func=lambda x: post_display.get(x, f"Post: {x}"),
-                key="wordpress_edit_select"
+                key="wordpress_edit_select_3"
             )
             
             # Load selected post
