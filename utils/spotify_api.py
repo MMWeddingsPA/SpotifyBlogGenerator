@@ -22,6 +22,37 @@ class SpotifyAPI:
         cleaned_name = re.sub(r'^\d+\s*', '', str(playlist_name))
         return cleaned_name.strip()
 
+    def get_playlist_tracks(self, playlist_id):
+        """
+        Get all tracks from a Spotify playlist by playlist ID
+        :param playlist_id: Spotify playlist ID
+        :return: List of track objects with name and artist information
+        """
+        try:
+            # Get the playlist tracks
+            results = self.spotify.playlist_tracks(playlist_id)
+            tracks = results['items']
+            
+            # Continue fetching if there are more tracks
+            while results['next']:
+                results = self.spotify.next(results)
+                tracks.extend(results['items'])
+            
+            # Extract track info
+            track_info = []
+            for item in tracks:
+                track = item['track']
+                if track:
+                    track_info.append({
+                        'name': track['name'],
+                        'artists': track['artists']
+                    })
+            
+            return track_info
+        except Exception as e:
+            print(f"Error fetching playlist tracks: {str(e)}")
+            return []
+            
     def get_playlist_link(self, user_id, playlist_name):
         """
         Find and return the Spotify playlist link by name

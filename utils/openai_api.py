@@ -117,24 +117,58 @@ def extract_spotify_playlist_id(spotify_url):
         logger.error(f"Error extracting Spotify playlist ID: {str(e)}")
         return None
 
-def revamp_existing_blog(post_content, post_title, youtube_api=None, style_options=None):
+def revamp_existing_blog(post_content, post_title, youtube_api=None, style_options=None, spotify_api=None):
     """
     Revamp an existing blog post to match current format and style
     :param post_content: HTML content from WordPress post
     :param post_title: Title of the blog post
     :param youtube_api: Optional YouTube API client to fetch missing links
     :param style_options: Dictionary of style options to customize the blog post (tone, mood, audience, etc.)
+    :param spotify_api: Optional Spotify API client to fetch fresh playlist data
     :return: Revamped blog post content in HTML format
     """
     # Extract songs and Spotify link from the existing content
-    songs = extract_songs_from_html(post_content)
+    extracted_songs = extract_songs_from_html(post_content)
     spotify_link = extract_spotify_link(post_content)
     
     # Extract Spotify playlist ID if we have a link
     spotify_playlist_id = None
+    
+    # By default, use the songs extracted from the blog post
+    songs = extracted_songs
+    
     if spotify_link:
         spotify_playlist_id = extract_spotify_playlist_id(spotify_link)
         logger.info(f"Extracted Spotify playlist ID: {spotify_playlist_id}")
+        
+        # If we have a Spotify API client and playlist ID, try to fetch fresh song data
+        if spotify_api and spotify_playlist_id:
+            try:
+                logger.info(f"Attempting to fetch fresh song data from Spotify playlist: {spotify_playlist_id}")
+                # Get fresh song data from Spotify playlist
+                spotify_tracks = spotify_api.get_playlist_tracks(spotify_playlist_id)
+                
+                if spotify_tracks and len(spotify_tracks) > 0:
+                    logger.info(f"Successfully fetched {len(spotify_tracks)} songs from Spotify playlist")
+                    
+                    # Format songs into the expected structure
+                    spotify_songs = []
+                    for track in spotify_tracks:
+                        artist_names = ', '.join([artist.get('name', '') for artist in track.get('artists', [])])
+                        spotify_songs.append({
+                            'Song': track.get('name', ''),
+                            'Artist': artist_names,
+                            'YouTube_Link': ''  # Will be populated later if YouTube API is provided
+                        })
+                    
+                    if spotify_songs:
+                        logger.info(f"Using {len(spotify_songs)} songs from Spotify playlist instead of {len(extracted_songs)} extracted songs")
+                        songs = spotify_songs
+                    else:
+                        logger.warning("Could not format Spotify tracks, using extracted songs instead")
+            except Exception as e:
+                logger.error(f"Error fetching Spotify playlist data: {str(e)}")
+                logger.info(f"Using {len(extracted_songs)} extracted songs as fallback")
     
     # Clean the content by removing HTML tags to get plain text for analysis
     try:
@@ -322,17 +356,20 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None, style_optio
             iframe_pattern = r'src="https://open\.spotify\.com/embed/playlist/PLAYLIST_ID"'
             iframe_replacement = f'src="https://open.spotify.com/embed/playlist/{spotify_playlist_id}"'
             content = re.sub(iframe_pattern, iframe_replacement, content)
-            logger.info(f"Added Spotify embed with playlist ID: {spotify_playlist_id}")
+            
+            # Replace SPOTIFY_LINK placeholder with actual Spotify link
+            link_pattern = r'href="SPOTIFY_LINK"'
+            link_replacement = f'href="{spotify_link}"'
+            content = re.sub(link_pattern, link_replacement, content)
         
-        # Debug output of content structure
         logger.info(f"Revamped content first 100 chars: {content[:100]}")
         logger.info(f"Revamped content last 100 chars: {content[-100:]}")
         
         return content
         
     except Exception as e:
-        logger.error(f"Error revamping blog post: {str(e)}")
-        raise Exception(f"Error revamping blog post: {str(e)}")
+        logger.error(f"Error generating revamped content: {str(e)}")
+        raise Exception(f"Failed to revamp blog post: {str(e)}")
 
 def generate_blog_post(playlist_name, songs_df, spotify_link=None, 
                   style_options=None):
@@ -351,18 +388,8 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
         - title_style: Style for section titles (e.g., 'descriptive', 'short', 'playful', 'elegant')
     """
     # Use standard OpenAI client with GPT-4o
-    client = OpenAI(api_key=get_secret("OPENAI_API_KEY"))
-    
-    # Initialize default style options if not provided
-    if style_options is None:
-        style_options = {}
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-    # Extract Spotify playlist ID if we have a link
-    spotify_playlist_id = None
-    if spotify_link:
-        spotify_playlist_id = extract_spotify_playlist_id(spotify_link)
-        print(f"Extracted Spotify playlist ID: {spotify_playlist_id}")
-    
     # Clean playlist name for display
     clean_name = playlist_name.split('Wedding Cocktail Hour')[0].strip()
 
@@ -394,191 +421,131 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
                 
         sections.append("\n".join(songs_list))
 
-    # Apply custom section count if provided
-    section_count = style_options.get('section_count', 4)
-    section_count = max(3, min(7, int(section_count) if str(section_count).isdigit() else 4))
-    
-    # Recalculate songs per section based on custom section count
-    if section_count:
-        songs_per_section = max(2, min(7, total_songs // section_count))
-        # Re-segment the songs
-        sections = []
-        for i in range(0, total_songs, songs_per_section):
-            section_songs = songs_df.iloc[i:i + songs_per_section]
-            songs_list = []
-            
-            for _, row in section_songs.iterrows():
-                song = row['Song']
-                artist = row['Artist']
-                youtube_link = row['YouTube_Link']
-                
-                # Only use YouTube links (not Spotify) for individual songs
-                if youtube_link and str(youtube_link).strip():
-                    # Check if YouTube link is valid and contains youtube.com
-                    if 'youtube.com' in str(youtube_link) or 'youtu.be' in str(youtube_link):
-                        # Format using HTML for better WordPress compatibility
-                        songs_list.append(f'<p><a href="{youtube_link}" target="_blank">{song} – {artist}</a></p>')
-                    else:
-                        songs_list.append(f'<p>{song} – {artist}</p>')
-                else:
-                    songs_list.append(f'<p>{song} – {artist}</p>')
-                    
-            sections.append("\n".join(songs_list))
-    
-    # Get customization options with defaults
-    tone = style_options.get('tone', 'conversational and warm')
-    mood = style_options.get('mood', 'romantic and celebratory')
-    audience = style_options.get('audience', 'engaged couples')
-    title_style = style_options.get('title_style', 'descriptive and catchy')
-    
-    # Advanced custom options
-    custom_guidance = style_options.get('custom_guidance', '')
-    custom_intro = style_options.get('custom_intro', '')
-    custom_conclusion = style_options.get('custom_conclusion', '')
-    
-    sections_text = "\n\n".join(f"Section {i+1} - Songs for the {['Opening', 'Middle', 'Peak', 'Wind-down', 'Finale', 'Transition', 'Closing'][i % 7]} Phase:\n{songs}" for i, songs in enumerate(sections))
-
-    # Build additional guidance section if custom fields are provided
-    additional_guidance = ""
-    if custom_guidance:
-        additional_guidance += f"\n\nCustom Writing Guidance:\n{custom_guidance}"
-    if custom_intro:
-        additional_guidance += f"\n\nCustom Introduction Theme:\n{custom_intro}"
-    if custom_conclusion:
-        additional_guidance += f"\n\nCustom Conclusion Theme:\n{custom_conclusion}"
+    sections_text = "\n\n".join(f"Section {i+1} - Songs for the {['Opening', 'Middle', 'Peak', 'Wind-down', 'Finale'][i % 5]} Phase:\n{songs}" for i, songs in enumerate(sections))
 
     prompt = f"""
-    Create a wedding DJ blog post for the playlist "{clean_name}" following this exact structure and HTML formatting:
+    Create a wedding DJ blog post for the playlist "{clean_name}" following this exact structure and HTML format:
 
-    1. Format and HTML Structure:
-    - Main title: Already provided by WordPress (don't include an H1 tag)
-    - Subtitle: Use an <h3> tag with the text "Your Perfect Soundtrack for Love, Laughter, and Celebration"
-    - Introduction: Use proper <p> tags for an engaging opening about the playlist's mood and purpose (2-3 paragraphs)
-    - {section_count} themed sections with {title_style} titles, each with:
-        * <h2> tag for section titles 
-        * <p> tags for paragraphs explaining why these songs work well together
-        * Listed songs with <p> tags for each song, including the YouTube links exactly as provided
-    - Conclusion: <h2> tag for "Why This Playlist Works for Your Wedding" with <p> tags for content
-    - Call to action: <h2> tag for "Listen to the Complete Playlist" that includes the Spotify playlist link
+    1. Introduction:
+    - First, include an <h3> subtitle saying "Your Perfect Soundtrack for Love, Laughter, and Celebration"
+    - Write 2-3 engaging paragraphs about this playlist's mood and purpose, wrapped in <p> tags
+    - Explain how these songs create the perfect atmosphere for a wedding cocktail hour
 
-    2. HTML Style Guidelines:
-    - Use proper HTML tags: <h2> for section headers, <h3> for subtitles, <p> for paragraphs
-    - For song links, format as: <p><a href="YOUTUBE_LINK" target="_blank">SONG NAME – ARTIST NAME</a></p>
-    - Add proper spacing between sections using <div> tags or line breaks
-    - If Spotify link exists, format as: 
-      * First add text link: <p><strong>Listen to the full playlist: </strong><a href="SPOTIFY_LINK" target="_blank">Spotify Playlist</a></p>
-      * Then add embedded player: <iframe src="https://open.spotify.com/embed/playlist/PLAYLIST_ID" width="100%" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
-        (where PLAYLIST_ID is extracted from the Spotify link - it's the part after "playlist/" in the URL)
-    - Add a class to important elements: class="highlight-section" for key section headers
-    - Make sure all HTML is properly structured and WordPress-compatible
+    2. 3-5 Themed Sections:
+    - For each section, create an <h2> heading with a catchy title describing the mood/theme
+    - Write 1-2 paragraphs explaining why these songs work well together
+    - List the songs from each section including YouTube links when available
 
-    3. Content Style Guidelines:
-    - Use a {tone} tone throughout the blog post
-    - Create a {mood} atmosphere in your descriptions
-    - Target your writing specifically for {audience}
-    - Focus on creating emotional moments for each section
-    - Blend practical details with storytelling
-    - Keep each section concise but meaningful (3-4 paragraphs max per section)
-    - Use compelling descriptive language that evokes mood and setting
-    - Emphasize how these songs enhance specific wedding moments{additional_guidance}
+    3. Conclusion:
+    - <h2> heading: "Why This Playlist Works for Your Wedding"
+    - 1-2 paragraphs explaining the overall flow and impact of the playlist
+    - End with a call to action for couples to consider these songs
 
-    4. Available Songs (already properly formatted with YouTube links, use exactly as provided):
+    4. Spotify Embed:
+    - <h2> heading: "Listen to the Complete Playlist"
+    - If a Spotify link is available, include both a text link and embedded player
+
+    Song List to Feature:
     {sections_text}
 
-    5. Additional Details:
-    Spotify Playlist Link: {spotify_link if spotify_link else '[Insert Spotify Playlist Link]'}
-    ONLY use this Spotify link at the end of the blog post in a final call to action section.
+    Spotify Link: {spotify_link or "Not available"}
 
-    Reference the sample blog format from the Moments & Memories website with clean formatting, proper headings, and well-structured content sections. Ensure the final product has the professional appearance of a high-quality wedding blog post.
+    Important Style Notes:
+    - Tone: {style_options.get('tone', 'Professional but warm')}
+    - Target mood: {style_options.get('mood', 'Elegant and sophisticated')}
+    - Audience focus: {style_options.get('audience', 'Modern couples planning their wedding')}
+    - Section title style: {style_options.get('title_style', 'Descriptive and evocative')}
+    - Number of sections: {style_options.get('section_count', 4)}
+    - Introduction emphasis: {style_options.get('intro_theme', 'Setting the perfect atmosphere')}
+    - Conclusion emphasis: {style_options.get('conclusion_theme', 'Creating memorable moments')}
+    {f"- Custom style: {style_options.get('writing_style', '')}" if style_options and 'writing_style' in style_options else ""}
+    {f"- Language style: {style_options.get('language_style', '')}" if style_options and 'language_style' in style_options else ""}
+    {f"- Sentence structure: {style_options.get('sentence_structure', '')}" if style_options and 'sentence_structure' in style_options else ""}
+    {f"- Custom guidance: {style_options.get('custom_guidance', '')}" if style_options and 'custom_guidance' in style_options else ""}
+
+    HTML Formatting Guidelines:
+    - Start content directly with the H3 subtitle (no HTML or body tags)
+    - Use <h3> for subtitle, <h2> for section headers, <p> for paragraphs
+    - For song links, format as: <p><a href="YouTube_Link" target="_blank">Song Name – Artist Name</a></p>
+    - Add proper spacing between sections using empty lines
+    - If Spotify link exists, format as: 
+      <p><strong>Listen to the full playlist:</strong> <a href="{spotify_link}" target="_blank">Spotify Playlist</a></p>
+      <iframe src="https://open.spotify.com/embed/playlist/{extract_spotify_playlist_id(spotify_link) if spotify_link else 'PLAYLIST_ID'}" width="100%" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+    - Add a class to important elements: class="highlight-section" for key section headers
     """
 
-    try:
-        # Debug API key (only showing if it exists, not the actual value)
-        if client.api_key:
-            print(f"OpenAI API Key exists: True (length: {len(client.api_key)})")
-        else:
-            print("OpenAI API Key does not exist")
-            raise Exception("OpenAI API key not found. Please check the OPENAI_API_KEY secret.")
-            
-        # Get model and temperature from style_options or use defaults
-        model = style_options.get('model', 'gpt-4.1')
-        temperature = style_options.get('temperature', 0.7)
-        
-        # Safety check - ensure we're using a valid model
-        valid_models = ["gpt-4.1", "gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano"]
-        if model not in valid_models:
-            print(f"Warning: Invalid model '{model}' selected. Falling back to gpt-4.1.")
-            model = "gpt-4.1"
-        
-        # Safety check - ensure temperature is within valid range
+    # Extract Spotify playlist ID if available
+    spotify_playlist_id = None
+    if spotify_link:
         try:
-            temperature = float(temperature)
-            if temperature < 0.0 or temperature > 1.0:
-                print(f"Warning: Invalid temperature {temperature}. Using default 0.7.")
-                temperature = 0.7
+            spotify_playlist_id = extract_spotify_playlist_id(spotify_link)
         except:
-            temperature = 0.7
-            
-        print(f"Using OpenAI model: {model} with temperature: {temperature}")
-            
-        # Make the API call with the selected model and temperature
+            pass
+
+    try:
+        # Check if API key is available
+        if client.api_key:
+            logging.info(f"OpenAI API Key found: {client.api_key[:5]}...[REDACTED]")
+        else:
+            raise ValueError("OpenAI API key not found.")
+        
+        # Set model and temperature parameters
+        model = "gpt-4o"  # Default to GPT-4o
+        temperature = 0.7  # Default temperature
+        
+        # Check if model/temperature settings are provided in style_options
+        if style_options:
+            if 'model' in style_options:
+                model = style_options['model']
+            if 'temperature' in style_options:
+                temperature = float(style_options['temperature'])
+        
         response = client.chat.completions.create(
-            model=model,  # Using the selected model
+            model=model,
             messages=[
                 {
-                    "role": "system",
-                    "content": """You are an expert wedding DJ and blog writer for Moments & Memories, a premium wedding DJ company.
+                    "role": "system", 
+                    "content": """You are an expert wedding DJ and blog writer for Moments & Memories, a premier wedding DJ company.
                     
-                    Your writing style has these key characteristics:
-                    - Professional yet conversational tone that speaks directly to engaged couples
-                    - Clear section headings that divide content into readable chunks
-                    - Expert insights about music selection for different wedding moments
-                    - Proper HTML formatting with h2, h3, p tags, and well-structured content
-                    - Engaging descriptions that evoke the atmosphere created by each music section
-                    - Thoughtful song selections with YouTube links for couples to preview
-                    - Clean, visually appealing formatting similar to existing blog posts
+                    Your task is to create engaging, informative blog posts about wedding playlists.
+                    Follow the structure provided exactly. Use appropriate HTML tags as instructed.
+                    Write in a professional yet warm tone that speaks directly to engaged couples.
                     
-                    IMPORTANT FORMATTING RULES:
-                    - DO NOT include opening or closing HTML tags like <html>, </html> or ```html
-                    - DO NOT wrap your response in quotation marks or any markdown code blocks
-                    - Start directly with the H3 subtitle and end with the final paragraph
-                    - Do not include any stray characters, quotes, or HTML comments
+                    Your blog posts should:
+                    - Balance expertise with approachability
+                    - Include descriptive language that evokes mood and setting
+                    - Group songs into thematic sections that make sense together
+                    - Explain why certain songs work well for specific moments
+                    - Use proper HTML formatting while maintaining readability
+                    - Emphasize the emotional impact of the music selections
                     
-                    Your content should match the premium brand voice of Moments & Memories, which balances professional expertise with warm, 
-                    personal engagement. Format songs and sections similar to existing blog posts on mmweddingspa.com."""
+                    Each section should have a clear purpose and flow naturally to the next.
+                    Be specific about how these songs enhance the wedding experience."""
                 },
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=2500,
-            temperature=temperature
+            temperature=temperature,
+            max_tokens=3000
         )
         
-        # Return the generated content
-        content = response.choices[0].message.content
+        blog_post = response.choices[0].message.content
         
-        # Minimal cleanup - only remove markdown code blocks and surrounding quotes
-        # Be careful NOT to alter HTML tags
-        if content.startswith('```html'):
-            content = content.replace('```html', '', 1)
-            if content.endswith('```'):
-                content = content[:-3]
+        # Clean up response by removing any markdown code blocks that might be present
+        if blog_post.startswith('```html'):
+            blog_post = blog_post.replace('```html', '', 1)
+            if blog_post.endswith('```'):
+                blog_post = blog_post[:-3]
         
-        # Remove any surrounding quotes but preserve HTML tags
-        content = content.strip('"\'')
+        # Remove any quotes that might be wrapping the content
+        blog_post = blog_post.strip('"\'')
         
-        # Replace PLAYLIST_ID with actual Spotify playlist ID if available
+        # If we have a Spotify playlist ID, replace any instances of PLAYLIST_ID in iframes
         if spotify_playlist_id:
-            # Replace the PLAYLIST_ID placeholder with the actual ID in the iframe
-            iframe_pattern = r'src="https://open\.spotify\.com/embed/playlist/PLAYLIST_ID"'
-            iframe_replacement = f'src="https://open.spotify.com/embed/playlist/{spotify_playlist_id}"'
-            content = re.sub(iframe_pattern, iframe_replacement, content)
-            print(f"Added Spotify embed with playlist ID: {spotify_playlist_id}")
+            blog_post = blog_post.replace('PLAYLIST_ID', spotify_playlist_id)
+            
+        return blog_post
         
-        # Debug output of content structure
-        print(f"Content first 100 chars: {content[:100]}")
-        print(f"Content last 100 chars: {content[-100:]}")
-        
-        return content
-
     except Exception as e:
-        raise Exception(f"Error generating blog post: {str(e)}")
+        error_msg = f"Error generating blog post: {str(e)}"
+        logging.error(error_msg)
+        raise Exception(error_msg)
