@@ -283,17 +283,28 @@ class WordPressAPI:
                         
                         # Let's see if it looks like a properly formatted app password
                         app_password_segments = self.password.split()
-                        if all(len(segment) == 4 for segment in app_password_segments):
-                            logger.info(f"Password appears to be in correct App Password format with {len(app_password_segments)} segments of 4 characters each")
-                        else:
-                            logger.warning(f"Password contains spaces but doesn't match typical app password format (XXXX XXXX XXXX XXXX)")
-                            segment_lengths = [len(s) for s in app_password_segments]
-                            logger.warning(f"Password segment lengths: {segment_lengths} (should all be 4)")
                         
-                        # Suggest a possible fix for app password format if it's not perfectly formatted
-                        if any(len(segment) != 4 for segment in app_password_segments):
-                            logger.warning("WordPress application passwords should be in format: XXXX XXXX XXXX XXXX")
-                            logger.warning("Please check if there are extra spaces or missing characters")
+                        # Check if it's a valid app password format
+                        # WordPress app passwords can have 4, 5, or 6 segments of 4 characters each
+                        valid_segment_counts = [4, 5, 6]
+                        all_segments_valid = all(len(segment) == 4 and segment.replace('-', '').isalnum() 
+                                               for segment in app_password_segments)
+                        
+                        if len(app_password_segments) in valid_segment_counts and all_segments_valid:
+                            logger.info(f"Password appears to be in correct App Password format with {len(app_password_segments)} segments")
+                        else:
+                            # Try to clean up the password if it's malformed
+                            cleaned_password = self.password.replace(' ', '').replace('-', '')
+                            if len(cleaned_password) in [16, 20, 24] and cleaned_password.isalnum():
+                                # Reformat to proper app password format
+                                segments = [cleaned_password[i:i+4] for i in range(0, len(cleaned_password), 4)]
+                                self.password = ' '.join(segments)
+                                logger.info(f"Reformatted app password to standard format: {len(segments)} segments")
+                            else:
+                                logger.warning("Password format doesn't match WordPress app password requirements")
+                                if len(app_password_segments) > 0:
+                                    segment_lengths = [len(s) for s in app_password_segments]
+                                    logger.warning(f"Current segment lengths: {segment_lengths}")
                     
                     if "wordpress.com" in self.base_url:
                         logger.error("For WordPress.com sites, special API endpoints and authentication may be required")

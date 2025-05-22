@@ -20,11 +20,22 @@ def load_csv(file):
     - Column E should contain Spotify playlist links (next to playlist titles)
     """
     try:
+        # Check file size first to prevent memory exhaustion
+        file.seek(0, 2)  # Move to end of file
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+        
+        # Limit file size to 50MB
+        max_size = 50 * 1024 * 1024  # 50MB
+        if file_size > max_size:
+            raise ValueError(f"CSV file too large ({file_size / 1024 / 1024:.1f}MB). Maximum allowed size is 50MB.")
+        
         # Read the CSV file without headers with proper encoding handling
         try:
             df_raw = pd.read_csv(file, header=None, encoding='utf-8')
         except UnicodeDecodeError:
             logger.warning("UTF-8 encoding failed, trying latin-1")
+            file.seek(0)  # Reset file position
             df_raw = pd.read_csv(file, header=None, encoding='latin-1')
         except pd.errors.EmptyDataError:
             logger.error("CSV file is empty")

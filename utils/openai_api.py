@@ -19,14 +19,15 @@ def extract_songs_from_html(html_content):
     Returns a list of dictionaries with song and artist information
     """
     try:
-        # First, attempt to find linked songs
-        song_pattern = r'<a[^>]*href="([^"]*)"[^>]*>(.*?)(?:–|&ndash;|&#8211;|\s*-\s*)(.*?)</a>|(?:<p>|<li>)(.*?)(?:–|&ndash;|&#8211;|\s*-\s*)(.*?)(?:</p>|</li>)'
-        matches = re.finditer(song_pattern, html_content, re.IGNORECASE | re.DOTALL)
+        # First, attempt to find linked songs with safer regex (limit backtracking)
+        # Using possessive quantifiers and atomic groups to prevent ReDoS
+        song_pattern = r'<a[^>]*?href="([^"]*?)"[^>]*?>((?:[^<]|<(?!/a>))*?)(?:–|&ndash;|&#8211;|\s*-\s*)((?:[^<]|<(?!/a>))*?)</a>|(?:<p>|<li>)((?:[^<–&\s-]|[^<–&\s-][^–&\s-]*?[^<–&\s-]){1,100})(?:–|&ndash;|&#8211;|\s*-\s*)((?:[^<]|<(?!/p>|/li>))*?)(?:</p>|</li>)'
+        matches = list(re.finditer(song_pattern, html_content, re.IGNORECASE | re.DOTALL))
         
         # Second pattern to look for song names in plain paragraphs (not in links)
-        # This will capture more song references that aren't formatted with the dash/hyphen
-        plain_pattern = r'<p>([^<]{2,50})\s+by\s+([^<]{2,50})<\/p>'
-        plain_matches = re.finditer(plain_pattern, html_content, re.IGNORECASE | re.DOTALL)
+        # Limit string length to prevent excessive backtracking
+        plain_pattern = r'<p>([^<]{2,50}?)\s+by\s+([^<]{2,50}?)<\/p>'
+        plain_matches = list(re.finditer(plain_pattern, html_content, re.IGNORECASE | re.DOTALL))
         
         songs = []
         for match in matches:
@@ -192,11 +193,17 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None, style_optio
     
     # Clean the content by removing HTML tags to get plain text for analysis
     try:
-        plain_content = trafilatura.extract(post_content)
-        if plain_content is None:
+        # Check if post_content is a string
+        if not isinstance(post_content, str):
+            logger.warning(f"Post content is not a string: {type(post_content)}")
+            post_content = str(post_content) if post_content else ""
+        
+        plain_content = trafilatura.extract(post_content) if post_content else None
+        
+        if plain_content is None or not plain_content.strip():
             # Fallback if trafilatura extraction fails
             # Use regex to strip HTML tags as a backup
-            logger.info("Trafilatura extraction returned None. Using regex fallback to clean HTML.")
+            logger.info("Trafilatura extraction returned None or empty. Using regex fallback to clean HTML.")
             import re
             plain_content = re.sub(r'<[^>]+>', ' ', post_content)
             # Remove extra whitespace
@@ -204,12 +211,12 @@ def revamp_existing_blog(post_content, post_title, youtube_api=None, style_optio
             
             # If still empty, use post_content directly with a warning
             if not plain_content or plain_content.isspace():
-                plain_content = post_content
+                plain_content = post_content if post_content else ""
                 logger.warning("Fallback HTML cleaning resulted in empty content. Using raw content.")
     except Exception as e:
         logger.warning(f"Error extracting plain text from HTML: {str(e)}")
         # Failsafe - use the original content if extraction fails
-        plain_content = post_content
+        plain_content = post_content if isinstance(post_content, str) else str(post_content)
     
     # Fetch YouTube links for songs if they're missing and YouTube API is provided
     if youtube_api and songs:

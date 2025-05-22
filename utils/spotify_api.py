@@ -43,12 +43,18 @@ class SpotifyAPI:
             # Extract track info
             track_info = []
             for item in tracks:
-                track = item['track']
-                if track:
-                    track_info.append({
-                        'name': track['name'],
-                        'artists': track['artists']
-                    })
+                track = item.get('track') if item else None
+                if track and isinstance(track, dict):
+                    # Safely extract track name and artists
+                    track_name = track.get('name', '')
+                    artists = track.get('artists', [])
+                    
+                    # Only add if we have valid data
+                    if track_name and isinstance(artists, list):
+                        track_info.append({
+                            'name': track_name,
+                            'artists': artists
+                        })
             
             return track_info
         except Exception as e:
@@ -72,19 +78,34 @@ class SpotifyAPI:
                 matching_names = []
                 
                 # First pass: Try exact match (case-insensitive)
-                while playlists:
-                    for playlist in playlists['items']:
+                max_iterations = 100  # Prevent infinite loops
+                iteration_count = 0
+                
+                while playlists and iteration_count < max_iterations:
+                    iteration_count += 1
+                    
+                    # Validate playlists structure
+                    if not isinstance(playlists, dict) or 'items' not in playlists:
+                        break
+                        
+                    for playlist in playlists.get('items', []):
+                        if not isinstance(playlist, dict):
+                            continue
+                            
                         # Get the Spotify playlist name
-                        spotify_name = playlist['name'].strip()
-                        matching_names.append(spotify_name)
+                        spotify_name = playlist.get('name', '').strip()
+                        if spotify_name:
+                            matching_names.append(spotify_name)
                         
                         # Compare names (case-insensitive)
                         if spotify_name.lower() == search_name.lower():
                             print(f"Found exact match: '{spotify_name}'")
-                            return playlist['external_urls']['spotify']
+                            external_urls = playlist.get('external_urls', {})
+                            if isinstance(external_urls, dict) and 'spotify' in external_urls:
+                                return external_urls['spotify']
     
                     # Get the next page of results if available
-                    if playlists['next']:
+                    if playlists.get('next'):
                         playlists = self.spotify.next(playlists)
                     else:
                         break
@@ -97,17 +118,30 @@ class SpotifyAPI:
                 base_name = search_name.split("Wedding Cocktail Hour")[0].strip()
                 
                 print(f"Trying with base name: '{base_name}'")
-                while playlists and base_name:
-                    for playlist in playlists['items']:
-                        spotify_name = playlist['name'].strip()
+                iteration_count = 0
+                
+                while playlists and base_name and iteration_count < max_iterations:
+                    iteration_count += 1
+                    
+                    # Validate playlists structure
+                    if not isinstance(playlists, dict) or 'items' not in playlists:
+                        break
+                        
+                    for playlist in playlists.get('items', []):
+                        if not isinstance(playlist, dict):
+                            continue
+                            
+                        spotify_name = playlist.get('name', '').strip()
                         
                         # Try partial matching
-                        if base_name.lower() in spotify_name.lower():
+                        if spotify_name and base_name.lower() in spotify_name.lower():
                             print(f"Found partial match with base name: '{spotify_name}'")
-                            return playlist['external_urls']['spotify']
+                            external_urls = playlist.get('external_urls', {})
+                            if isinstance(external_urls, dict) and 'spotify' in external_urls:
+                                return external_urls['spotify']
                     
                     # Get the next page of results if available
-                    if playlists['next']:
+                    if playlists.get('next'):
                         playlists = self.spotify.next(playlists)
                     else:
                         break

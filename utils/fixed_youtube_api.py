@@ -1,5 +1,6 @@
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import httplib2
 import logging
 import time
 import random
@@ -18,7 +19,9 @@ class YouTubeAPI:
             raise ValueError("YouTube API key is required")
         
         self.api_key = api_key
-        self.youtube = build('youtube', 'v3', developerKey=api_key)
+        # Create HTTP object with timeout
+        http = httplib2.Http(timeout=30)  # 30 second timeout
+        self.youtube = build('youtube', 'v3', developerKey=api_key, http=http)
         self.quota_exceeded = False
         self.last_request_time = 0
         self.min_request_interval = 0.1  # 100ms between requests

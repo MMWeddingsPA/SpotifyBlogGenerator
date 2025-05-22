@@ -186,13 +186,17 @@ def list_wordpress_posts():
         if filename.endswith(".json"):
             filepath = os.path.join("wordpress_posts", filename)
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath, 'r', encoding='utf-8') as f:
                     post_info = json.load(f)
                     # Add filepath to the post info
                     post_info['filepath'] = filepath
                     posts.append(post_info)
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in {filepath}: {str(e)}")
+            except UnicodeDecodeError:
+                logger.error(f"Encoding error in {filepath}")
             except Exception as e:
-                print(f"Error loading {filepath}: {str(e)}")
+                logger.error(f"Error loading {filepath}: {str(e)}")
     
     # Sort by saved_at date (newest first)
     posts.sort(key=lambda x: x.get('saved_at', ''), reverse=True)
@@ -207,17 +211,25 @@ def find_saved_blog_posts():
     # Get all HTML files in the blogs directory with path validation
     blog_files = []
     try:
-        for f in os.listdir("blogs"):
+        # Get absolute path to prevent directory traversal
+        blogs_dir = os.path.abspath("blogs")
+        
+        for f in os.listdir(blogs_dir):
             # Validate filename to prevent path traversal
             if f.endswith(".html") and ".." not in f and "/" not in f and "\\" not in f:
-                blog_files.append(f)
+                full_path = os.path.join(blogs_dir, f)
+                # Ensure the file is actually within the blogs directory (prevents symlink attacks)
+                if os.path.realpath(full_path).startswith(blogs_dir + os.sep):
+                    # Also check it's a regular file, not a symlink
+                    if os.path.isfile(full_path) and not os.path.islink(full_path):
+                        blog_files.append(f)
     except OSError as e:
         logger.error(f"Error reading blogs directory: {str(e)}")
         return []
     
     # Sort by modification time (newest first) with error handling
     try:
-        blog_files.sort(key=lambda x: os.path.getmtime(os.path.join("blogs", x)), reverse=True)
+        blog_files.sort(key=lambda x: os.path.getmtime(os.path.join(blogs_dir, x)), reverse=True)
     except OSError as e:
         logger.warning(f"Error sorting blog files by modification time: {str(e)}")
         # Fallback to alphabetical sort
@@ -231,12 +243,28 @@ def load_saved_blog_post(filename):
     if ".." in filename or "/" in filename or "\\" in filename:
         return "Error", "Invalid filename"
     
-    file_path = os.path.join("blogs", filename)
+    # Get absolute path and validate it's within blogs directory
+    blogs_dir = os.path.abspath("blogs")
+    file_path = os.path.join(blogs_dir, filename)
+    
+    # Ensure the resolved path is within blogs directory (prevents symlink attacks)
+    if not os.path.realpath(file_path).startswith(blogs_dir + os.sep):
+        return "Error", "Invalid file path"
     
     try:
         # Check if file exists
         if not os.path.exists(file_path):
             return "Error", "Blog post file not found"
+        
+        # Check if file is a text file (not binary)
+        try:
+            with open(file_path, "rb") as f:
+                # Read first 512 bytes to check if it's binary
+                chunk = f.read(512)
+                if b'\x00' in chunk:
+                    return "Error", "File appears to be binary, not a text file"
+        except Exception:
+            pass
         
         # Try reading with different encodings
         content = ""
@@ -314,9 +342,10 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                         if youtube_link:
                             playlist_df.at[idx, 'YouTube_Link'] = youtube_link
                         
-                        # Update progress bar using correct counter
-                        progress = min(1.0, (current_song_num + 1) / total_songs)
-                        progress_bar.progress(progress)
+                        # Update progress bar - increment after processing each song
+                        # Using current_song_num which starts at 0, so add 1 for correct progress
+                        progress = (current_song_num + 1) / total_songs
+                        progress_bar.progress(min(1.0, progress))
                         
                     except Exception as e:
                         # Handle YouTube API errors gracefully
@@ -709,29 +738,8 @@ def main():
             # Blog customization options
             if generate_blog:
                 with st.expander("Blog Customization Options", expanded=False):
-                    # Initialize session state for all customization options
-                    if 'model' not in st.session_state:
-                        st.session_state.model = "gpt-4o"
-                    if 'temperature' not in st.session_state:
-                        st.session_state.temperature = 0.7
-                    if 'tone' not in st.session_state:
-                        st.session_state.tone = "Professional"
-                    if 'mood' not in st.session_state:
-                        st.session_state.mood = "Elegant"
-                    if 'intro_theme' not in st.session_state:
-                        st.session_state.intro_theme = "Elegant Opening"
-                    if 'conclusion_theme' not in st.session_state:
-                        st.session_state.conclusion_theme = "Standard Closing"
-                    if 'section_count' not in st.session_state:
-                        st.session_state.section_count = "Default (3-4)"
-                    if 'title_style' not in st.session_state:
-                        st.session_state.title_style = "Descriptive"
-                    if 'audience' not in st.session_state:
-                        st.session_state.audience = "Modern Couples"
-                    if 'writing_style' not in st.session_state:
-                        st.session_state.writing_style = ""
-                    if 'language_style' not in st.session_state:
-                        st.session_state.language_style = ""
+                    # Session state is already initialized in initialize_session_state()
+                    # No need to re-initialize here
                     if 'sentence_structure' not in st.session_state:
                         st.session_state.sentence_structure = ""
                     if 'emotional_tone' not in st.session_state:
@@ -1462,6 +1470,8 @@ def main():
                     st.error("No post selected. Please go back and select a post.")
                     if st.button("⬅️ Back to Selection", key="wordpress_back_button"):
                         st.session_state.wp_post_confirmed = False
+                        st.session_state.wp_selected_post = None  # Reset selected post
+                        st.session_state.wp_selected_post_id = None  # Reset selected post ID
                         st.session_state.wp_selected_post = None
                 else:
                     # Post header - handle different title formats
