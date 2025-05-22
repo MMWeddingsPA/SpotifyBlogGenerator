@@ -681,24 +681,22 @@ def main():
                 # Validate file size (max 10MB)
                 if uploaded_file.size > 10 * 1024 * 1024:
                     st.error("❌ File too large. Please upload a CSV file smaller than 10MB.")
-                    return
-                
-                # Validate file type
-                if not uploaded_file.name.lower().endswith('.csv'):
-                    st.error("❌ Please upload a valid CSV file.")
-                    return
-                
-                st.session_state.df = load_csv(uploaded_file)
-                st.success("✅ CSV file loaded successfully!")
-                
-                # Show a preview of the data
-                if st.session_state.df is not None and not st.session_state.df.empty:
-                    st.write(f"Found {len(st.session_state.df)} songs across {st.session_state.df['Playlist'].nunique()} playlists")
-                    
-                    # Show a small sample
-                    st.write("Preview of loaded data:")
-                    preview_cols = ['Playlist', 'Song', 'Artist', 'YouTube_Link', 'Spotify_Link']
-                    st.dataframe(st.session_state.df[preview_cols].head(5))
+                else:
+                    # Validate file type
+                    if not uploaded_file.name.lower().endswith('.csv'):
+                        st.error("❌ Please upload a valid CSV file.")
+                    else:
+                        st.session_state.df = load_csv(uploaded_file)
+                        st.success("✅ CSV file loaded successfully!")
+                        
+                        # Show a preview of the data
+                        if st.session_state.df is not None and not st.session_state.df.empty:
+                            st.write(f"Found {len(st.session_state.df)} songs across {st.session_state.df['Playlist'].nunique()} playlists")
+                            
+                            # Show a small sample
+                            st.write("Preview of loaded data:")
+                            preview_cols = ['Playlist', 'Song', 'Artist', 'YouTube_Link', 'Spotify_Link']
+                            st.dataframe(st.session_state.df[preview_cols].head(5))
                     
             except ValueError as e:
                 st.error(f"❌ Invalid CSV format: {str(e)}")
@@ -1472,7 +1470,6 @@ def main():
                         st.session_state.wp_post_confirmed = False
                         st.session_state.wp_selected_post = None  # Reset selected post
                         st.session_state.wp_selected_post_id = None  # Reset selected post ID
-                        st.session_state.wp_selected_post = None
                 else:
                     # Post header - handle different title formats
                     post_title = selected_post.get('title', '')
