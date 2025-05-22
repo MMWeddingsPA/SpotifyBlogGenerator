@@ -408,7 +408,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
         - title_style: Style for section titles (e.g., 'descriptive', 'short', 'playful', 'elegant')
     """
     # Use standard OpenAI client with GPT-4o
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    client = OpenAI(api_key=get_secret("OPENAI_API_KEY"))
 
     # Clean playlist name for display
     clean_name = playlist_name.split('Wedding Cocktail Hour')[0].strip()
@@ -499,8 +499,9 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
     if spotify_link:
         try:
             spotify_playlist_id = extract_spotify_playlist_id(spotify_link)
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not extract Spotify playlist ID from {spotify_link}: {str(e)}")
+            spotify_playlist_id = None
 
     try:
         # Check if API key is available

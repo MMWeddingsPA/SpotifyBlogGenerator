@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import json
+import re
 from datetime import datetime
 import traceback
 from utils.fixed_youtube_api import YouTubeAPI
@@ -288,8 +289,8 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
         if "Spotify" in operations and spotify_api:
             with st.spinner("🎧 Fetching Spotify playlist link..."):
                 try:
-                    # Use the DJ's actual Spotify username from their profile link
-                    user_id = "bm8eje5tcjj9eazftizqoikwm"  # The correct user ID from the Spotify URL
+                    # Use the DJ's Spotify username from environment variable or default
+                    user_id = os.getenv("SPOTIFY_USER_ID", "bm8eje5tcjj9eazftizqoikwm")
                     
                     # Clean the playlist name for Spotify search - just use one cleaning method
                     # Don't clean it twice as that can cause too much difference from actual Spotify names
@@ -1054,7 +1055,7 @@ def main():
                     # Save the updated dataframe
                     filename = save_processed_csv(st.session_state.df, "added_song")
                     st.success(f"✅ Added new song to playlist and saved to {filename}!")
-                    st.experimental_rerun()
+                    st.rerun()
             
             # Create new playlist section
             st.markdown("---")
@@ -1106,7 +1107,7 @@ def main():
                     # Save updated dataframe
                     filename = save_processed_csv(st.session_state.df, "new_playlist")
                     st.success(f"✅ Created new playlist '{new_playlist_name}' and saved to {filename}!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.warning("⚠️ Please enter a playlist name")
         else:
@@ -2006,7 +2007,6 @@ def main():
                 # Note: This won't work directly in Streamlit, but provides a visual cue
 
 if __name__ == "__main__":
-    import re  # Import at the top
     print("Starting application")
     try:
         main()

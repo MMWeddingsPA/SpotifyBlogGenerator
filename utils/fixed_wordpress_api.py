@@ -39,7 +39,7 @@ class WordPressAPI:
         
         # Make sure URL doesn't have trailing `/wp-json`
         if api_url.endswith('/wp-json'):
-            api_url = api_url[:-8]  # Remove trailing /wp-json
+            api_url = api_url[:-len('/wp-json')]  # Remove trailing /wp-json
         
         # Strip any trailing slashes for consistency
         api_url = api_url.rstrip('/')
@@ -512,7 +512,11 @@ class WordPressAPI:
                     }
                     
                     # Add featured image if available
-                    if '_embedded' in post and 'wp:featuredmedia' in post['_embedded'] and len(post['_embedded']['wp:featuredmedia']) > 0:
+                    if ('_embedded' in post and 
+                        'wp:featuredmedia' in post['_embedded'] and 
+                        isinstance(post['_embedded']['wp:featuredmedia'], list) and 
+                        len(post['_embedded']['wp:featuredmedia']) > 0 and
+                        post['_embedded']['wp:featuredmedia'][0] is not None):
                         featured_media = post['_embedded']['wp:featuredmedia'][0]
                         processed_post['featured_image'] = {
                             'id': featured_media.get('id'),
@@ -582,7 +586,11 @@ class WordPressAPI:
                 }
                 
                 # Add featured image if available
-                if '_embedded' in post and 'wp:featuredmedia' in post['_embedded'] and len(post['_embedded']['wp:featuredmedia']) > 0:
+                if ('_embedded' in post and 
+                    'wp:featuredmedia' in post['_embedded'] and 
+                    isinstance(post['_embedded']['wp:featuredmedia'], list) and 
+                    len(post['_embedded']['wp:featuredmedia']) > 0 and
+                    post['_embedded']['wp:featuredmedia'][0] is not None):
                     featured_media = post['_embedded']['wp:featuredmedia'][0]
                     processed_post['featured_image'] = {
                         'id': featured_media.get('id'),
