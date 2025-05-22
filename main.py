@@ -1145,57 +1145,55 @@ def main():
                     # Validate playlist name
                     if len(new_playlist_name.strip()) < 3:
                         st.error("❌ Playlist name must be at least 3 characters long.")
-                        st.stop()
-                    
-                    # Clean the input
-                    new_playlist_name = new_playlist_name.strip()
-                    
-                    # Check for duplicate names
-                    clean_existing_names = [re.sub(r'^\d{3}\s+', '', p).lower() for p in playlists]
-                    if new_playlist_name.lower() in clean_existing_names:
-                        st.error("❌ A playlist with this name already exists.")
-                        st.stop()
-                    
-                    # Make sure it has the right format
-                    if "Wedding Cocktail Hour" not in new_playlist_name:
-                        new_playlist_name = f"{new_playlist_name} Wedding Cocktail Hour"
-                    
-                    # Add numeric prefix (find the highest existing number and add 1)
-                    max_number = 0
-                    for playlist in playlists:
-                        try:
-                            # Extract the number from the playlist name
-                            first_part = playlist.split(' ')[0]
-                            if first_part.isdigit():
-                                number = int(first_part)
-                                max_number = max(max_number, number)
-                        except (ValueError, IndexError):
-                            # If we can't extract a number, just continue
-                            continue
-                    
-                    # Format the playlist name with the next number
-                    formatted_playlist_name = f"{max_number + 1:03d} {new_playlist_name}"
-                    
-                    # Add empty row with the new playlist
-                    new_row = {
-                        'Playlist': formatted_playlist_name,
-                        'Song': 'First Song',
-                        'Artist': 'Artist Name',
-                        'Song_Artist': 'First Song-Artist Name',
-                        'YouTube_Link': '',
-                        'Spotify_Link': ''
-                    }
-                    
-                    # Add to dataframe
-                    st.session_state.df = pd.concat([
-                        st.session_state.df, 
-                        pd.DataFrame([new_row])
-                    ], ignore_index=True)
-                    
-                    # Save updated dataframe
-                    filename = save_processed_csv(st.session_state.df, "new_playlist")
-                    st.success(f"✅ Created new playlist '{new_playlist_name}' and saved to {filename}!")
-                    st.rerun()
+                    else:
+                        # Clean the input
+                        new_playlist_name = new_playlist_name.strip()
+                        
+                        # Check for duplicate names
+                        clean_existing_names = [re.sub(r'^\d{3}\s+', '', p).lower() for p in playlists]
+                        if new_playlist_name.lower() in clean_existing_names:
+                            st.error("❌ A playlist with this name already exists.")
+                        else:
+                            # Make sure it has the right format
+                            if "Wedding Cocktail Hour" not in new_playlist_name:
+                                new_playlist_name = f"{new_playlist_name} Wedding Cocktail Hour"
+                            
+                            # Add numeric prefix (find the highest existing number and add 1)
+                            max_number = 0
+                            for playlist in playlists:
+                                try:
+                                    # Extract the number from the playlist name
+                                    first_part = playlist.split(' ')[0]
+                                    if first_part.isdigit():
+                                        number = int(first_part)
+                                        max_number = max(max_number, number)
+                                except (ValueError, IndexError):
+                                    # If we can't extract a number, just continue
+                                    continue
+                            
+                            # Format the playlist name with the next number
+                            formatted_playlist_name = f"{max_number + 1:03d} {new_playlist_name}"
+                            
+                            # Add empty row with the new playlist
+                            new_row = {
+                                'Playlist': formatted_playlist_name,
+                                'Song': 'First Song',
+                                'Artist': 'Artist Name',
+                                'Song_Artist': 'First Song-Artist Name',
+                                'YouTube_Link': '',
+                                'Spotify_Link': ''
+                            }
+                            
+                            # Add to dataframe
+                            st.session_state.df = pd.concat([
+                                st.session_state.df, 
+                                pd.DataFrame([new_row])
+                            ], ignore_index=True)
+                            
+                            # Save updated dataframe
+                            filename = save_processed_csv(st.session_state.df, "new_playlist")
+                            st.success(f"✅ Created new playlist '{new_playlist_name}' and saved to {filename}!")
+                            st.rerun()
                 else:
                     st.warning("⚠️ Please enter a playlist name")
         else:
