@@ -1,6 +1,8 @@
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import logging
+import time
+import random
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +20,50 @@ class YouTubeAPI:
         self.api_key = api_key
         self.youtube = build('youtube', 'v3', developerKey=api_key)
         self.quota_exceeded = False
+        self.last_request_time = 0
+        self.min_request_interval = 0.1  # 100ms between requests
+    
+    def _rate_limit(self):
+        """Implement basic rate limiting to avoid hitting API limits"""
+        current_time = time.time()
+        time_since_last_request = current_time - self.last_request_time
+        
+        if time_since_last_request < self.min_request_interval:
+            sleep_time = self.min_request_interval - time_since_last_request
+            time.sleep(sleep_time)
+        
+        self.last_request_time = time.time()
+    
+    def _retry_request(self, request_func, max_retries=3):
+        """Retry API requests with exponential backoff"""
+        for attempt in range(max_retries):
+            try:
+                self._rate_limit()
+                return request_func()
+            except HttpError as e:
+                error_message = str(e)
+                
+                # Don't retry quota exceeded errors
+                if "quotaExceeded" in error_message:
+                    self.quota_exceeded = True
+                    raise Exception("YouTube API quota exceeded. Please try again tomorrow.")
+                
+                # Retry on rate limit or server errors
+                if attempt < max_retries - 1 and ("rateLimitExceeded" in error_message or "backendError" in error_message):
+                    wait_time = (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(f"YouTube API error (attempt {attempt + 1}), retrying in {wait_time:.1f}s: {error_message}")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    raise
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(f"YouTube API error (attempt {attempt + 1}), retrying in {wait_time:.1f}s: {str(e)}")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    raise
         
     def verify_connection(self):
         """
@@ -25,13 +71,16 @@ class YouTubeAPI:
         Returns (success, message) tuple
         """
         try:
-            # Make a simple API call to verify the key works
-            response = self.youtube.videos().list(
-                part='snippet',
-                chart='mostPopular',
-                maxResults=1,
-                regionCode='US'
-            ).execute()
+            def _make_test_request():
+                return self.youtube.videos().list(
+                    part='snippet',
+                    chart='mostPopular',
+                    maxResults=1,
+                    regionCode='US'
+                ).execute()
+            
+            # Use retry logic for the API call
+            response = self._retry_request(_make_test_request)
             
             # Check if we got any items in the response
             if 'items' in response and len(response['items']) > 0:
@@ -41,21 +90,17 @@ class YouTubeAPI:
                 logger.warning("YouTube API returned empty response")
                 return False, "API returned empty response"
                 
-        except HttpError as e:
+        except Exception as e:
             error_message = str(e)
             logger.error(f"YouTube API error: {error_message}")
             
             # Check specifically for quota exceeded errors
-            if "quotaExceeded" in error_message:
+            if "quotaExceeded" in error_message or "quota exceeded" in error_message.lower():
                 self.quota_exceeded = True
                 logger.warning("YouTube API quota exceeded")
                 return False, f"API error: {error_message}"
             
             return False, f"API error: {error_message}"
-            
-        except Exception as e:
-            logger.error(f"YouTube API general error: {str(e)}")
-            return False, f"API error: {str(e)}"
 
     def get_video_link(self, search_query):
         """
@@ -78,25 +123,32 @@ class YouTubeAPI:
         logger.info(f"Searching YouTube for: {refined_query}")
         
         try:
-            search_response = self.youtube.search().list(
-                q=refined_query,
-                part='id,snippet',
-                maxResults=1,
-                type='video',
-                videoEmbeddable='true',
-                safeSearch='moderate',
-                videoDefinition='high'
-            ).execute()
+            def _make_search_request():
+                return self.youtube.search().list(
+                    q=refined_query,
+                    part='id,snippet',
+                    maxResults=1,
+                    type='video',
+                    videoEmbeddable='true',
+                    safeSearch='moderate',
+                    videoDefinition='high'
+                ).execute()
+
+            search_response = self._retry_request(_make_search_request)
 
             if not search_response.get('items'):
                 # Try a more relaxed search if no results found
                 logger.info(f"No results with refined query, trying original query: {search_query}")
-                search_response = self.youtube.search().list(
-                    q=search_query,  # Use original query
-                    part='id',
-                    maxResults=1,
-                    type='video'
-                ).execute()
+                
+                def _make_fallback_request():
+                    return self.youtube.search().list(
+                        q=search_query,  # Use original query
+                        part='id',
+                        maxResults=1,
+                        type='video'
+                    ).execute()
+                
+                search_response = self._retry_request(_make_fallback_request)
                 
                 if not search_response.get('items'):
                     logger.warning(f"No YouTube results found for: {search_query}")
@@ -107,18 +159,14 @@ class YouTubeAPI:
             logger.info(f"Found YouTube video: {video_url}")
             return video_url
 
-        except HttpError as e:
+        except Exception as e:
             error_message = str(e)
-            logger.error(f"YouTube API error during search: {error_message}")
+            logger.error(f"Error fetching YouTube link: {error_message}")
             
             # Check specifically for quota exceeded errors
-            if "quotaExceeded" in error_message:
+            if "quotaExceeded" in error_message or "quota exceeded" in error_message.lower():
                 self.quota_exceeded = True
                 raise Exception("YouTube API quota exceeded. Please try again tomorrow.")
             
             # For other API errors, return empty string instead of failing
-            return ""
-            
-        except Exception as e:
-            logger.error(f"Error fetching YouTube link: {str(e)}")
             return ""

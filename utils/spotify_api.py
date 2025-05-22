@@ -18,6 +18,8 @@ class SpotifyAPI:
         Clean playlist name by removing numeric prefix while preserving the full name
         Example: '006 The Smooth Sail Wedding Cocktail Hour' -> 'The Smooth Sail Wedding Cocktail Hour'
         """
+        if playlist_name is None:
+            return ""
         # Remove numeric prefix and any leading spaces
         cleaned_name = re.sub(r'^\d+\s*', '', str(playlist_name))
         return cleaned_name.strip()
@@ -141,7 +143,7 @@ class SpotifyAPI:
                                 match_count += 1
                         
                         # If more than half the terms match, consider it a good match
-                        if match_count >= len(key_terms) / 2 and match_count > 0:
+                        if match_count >= len(key_terms) // 2 and match_count > 0:
                             print(f"Found fuzzy match with key terms: '{spotify_name}'")
                             return playlist['external_urls']['spotify']
                     

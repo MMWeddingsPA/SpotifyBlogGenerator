@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import json
 import re
+import logging
 from datetime import datetime
 import traceback
 from utils.fixed_youtube_api import YouTubeAPI
@@ -10,6 +11,10 @@ from utils.spotify_api import SpotifyAPI
 from utils.openai_api import generate_blog_post
 from utils.fixed_wordpress_api import WordPressAPI
 from utils.corrected_csv_handler import load_csv, save_csv, create_empty_playlist_df
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
@@ -66,13 +71,25 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Initialize core session state variables
+def init_session_state():
+    """Initialize session state variables efficiently"""
+    defaults = {
+        'df': None,
+        'last_saved_csv': None,
+        'auto_loaded': False,
+        'api_status_checked': False,
+        'youtube_api_available': False,
+        'spotify_api_available': False,
+        'wordpress_api_available': False
+    }
+    
+    for key, default_value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = default_value
+
 # Initialize session state
-if 'df' not in st.session_state:
-    st.session_state.df = None
-if 'last_saved_csv' not in st.session_state:
-    st.session_state.last_saved_csv = None
-if 'auto_loaded' not in st.session_state:
-    st.session_state.auto_loaded = False
+init_session_state()
     
 # Functions for file management
 def find_latest_csv():
@@ -187,31 +204,66 @@ def find_saved_blog_posts():
     if not os.path.exists("blogs"):
         return []
     
-    # Get all HTML files in the blogs directory
-    blog_files = [f for f in os.listdir("blogs") if f.endswith(".html")]
+    # Get all HTML files in the blogs directory with path validation
+    blog_files = []
+    try:
+        for f in os.listdir("blogs"):
+            # Validate filename to prevent path traversal
+            if f.endswith(".html") and ".." not in f and "/" not in f and "\\" not in f:
+                blog_files.append(f)
+    except OSError as e:
+        logger.error(f"Error reading blogs directory: {str(e)}")
+        return []
     
-    # Sort by modification time (newest first)
-    blog_files.sort(key=lambda x: os.path.getmtime(f"blogs/{x}"), reverse=True)
+    # Sort by modification time (newest first) with error handling
+    try:
+        blog_files.sort(key=lambda x: os.path.getmtime(os.path.join("blogs", x)), reverse=True)
+    except OSError as e:
+        logger.warning(f"Error sorting blog files by modification time: {str(e)}")
+        # Fallback to alphabetical sort
+        blog_files.sort()
     
     return blog_files
 
 def load_saved_blog_post(filename):
     """Load a saved blog post from a file"""
+    # Validate filename to prevent path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return "Error", "Invalid filename"
+    
+    file_path = os.path.join("blogs", filename)
+    
     try:
-        with open(f"blogs/{filename}", "r") as f:
-            content = f.read()
+        # Check if file exists
+        if not os.path.exists(file_path):
+            return "Error", "Blog post file not found"
+        
+        # Try reading with different encodings
+        content = ""
+        for encoding in ['utf-8', 'latin-1', 'cp1252']:
+            try:
+                with open(file_path, "r", encoding=encoding) as f:
+                    content = f.read()
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if not content:
+            return "Error", "Could not read file with any supported encoding"
             
-            # Extract title if available
-            title = "Untitled Blog Post"
-            if content.startswith("<h1>"):
-                title_end = content.find("</h1>")
-                if title_end > 0:
-                    title = content[4:title_end]
-                    content = content[title_end + 5:].strip()
-            
-            return title, content
+        # Extract title if available
+        title = "Untitled Blog Post"
+        if content.startswith("<h1>"):
+            title_end = content.find("</h1>")
+            if title_end > 0:
+                title = content[4:title_end]
+                content = content[title_end + 5:].strip()
+        
+        return title, content
+    except PermissionError:
+        return "Error", "Permission denied - cannot read blog post file"
     except Exception as e:
-        st.error(f"Error loading blog post: {str(e)}")
+        logger.error(f"Error loading blog post {filename}: {str(e)}")
         return "Error", f"Could not load blog post: {str(e)}"
 
 def clean_playlist_name_for_blog(playlist_name):
@@ -250,7 +302,7 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                 progress_bar = st.progress(0)
                 
                 # Fetch YouTube links for each song with missing link
-                for idx, row in missing_links.iterrows():
+                for current_song_num, (idx, row) in enumerate(missing_links.iterrows()):
                     try:
                         # Create a search query combining song and artist
                         search_query = f"{row['Song']} - {row['Artist']}"
@@ -262,8 +314,8 @@ def process_playlist(playlist, youtube_api, spotify_api, operations):
                         if youtube_link:
                             playlist_df.at[idx, 'YouTube_Link'] = youtube_link
                         
-                        # Update progress bar
-                        progress = min(1.0, (idx + 1) / total_songs)
+                        # Update progress bar using correct counter
+                        progress = min(1.0, (current_song_num + 1) / total_songs)
                         progress_bar.progress(progress)
                         
                     except Exception as e:
@@ -597,6 +649,16 @@ def main():
         # Process the uploaded file
         if uploaded_file is not None:
             try:
+                # Validate file size (max 10MB)
+                if uploaded_file.size > 10 * 1024 * 1024:
+                    st.error("❌ File too large. Please upload a CSV file smaller than 10MB.")
+                    return
+                
+                # Validate file type
+                if not uploaded_file.name.lower().endswith('.csv'):
+                    st.error("❌ Please upload a valid CSV file.")
+                    return
+                
                 st.session_state.df = load_csv(uploaded_file)
                 st.success("✅ CSV file loaded successfully!")
                 
@@ -609,9 +671,13 @@ def main():
                     preview_cols = ['Playlist', 'Song', 'Artist', 'YouTube_Link', 'Spotify_Link']
                     st.dataframe(st.session_state.df[preview_cols].head(5))
                     
+            except ValueError as e:
+                st.error(f"❌ Invalid CSV format: {str(e)}")
+                st.info("💡 Please ensure your CSV follows the required format with playlist headers and song data.")
             except Exception as e:
                 st.error(f"❌ Error loading CSV file: {str(e)}")
-                st.error(traceback.format_exc())
+                logger.error(f"CSV loading error: {str(e)}")
+                logger.error(traceback.format_exc())
         
         # Show what we're working with
         if st.session_state.auto_loaded and st.session_state.df is not None:
@@ -1043,7 +1109,7 @@ def main():
                         'Artist': 'Artist Name',
                         'Song_Artist': 'New Song-Artist Name',
                         'YouTube_Link': '',
-                        'Spotify_Link': edit_df['Spotify_Link'].iloc[0] if 'Spotify_Link' in edit_df.columns else ''
+                        'Spotify_Link': edit_df['Spotify_Link'].iloc[0] if 'Spotify_Link' in edit_df.columns and not edit_df['Spotify_Link'].empty else ''
                     }
                     
                     # Add the new row to the dataframe
@@ -1070,6 +1136,20 @@ def main():
             # Create button
             if st.button("✨ Create New Playlist"):
                 if new_playlist_name:
+                    # Validate playlist name
+                    if len(new_playlist_name.strip()) < 3:
+                        st.error("❌ Playlist name must be at least 3 characters long.")
+                        st.stop()
+                    
+                    # Clean the input
+                    new_playlist_name = new_playlist_name.strip()
+                    
+                    # Check for duplicate names
+                    clean_existing_names = [re.sub(r'^\d{3}\s+', '', p).lower() for p in playlists]
+                    if new_playlist_name.lower() in clean_existing_names:
+                        st.error("❌ A playlist with this name already exists.")
+                        st.stop()
+                    
                     # Make sure it has the right format
                     if "Wedding Cocktail Hour" not in new_playlist_name:
                         new_playlist_name = f"{new_playlist_name} Wedding Cocktail Hour"
@@ -1079,11 +1159,13 @@ def main():
                     for playlist in playlists:
                         try:
                             # Extract the number from the playlist name
-                            number = int(playlist.split(' ')[0])
-                            max_number = max(max_number, number)
-                        except:
+                            first_part = playlist.split(' ')[0]
+                            if first_part.isdigit():
+                                number = int(first_part)
+                                max_number = max(max_number, number)
+                        except (ValueError, IndexError):
                             # If we can't extract a number, just continue
-                            pass
+                            continue
                     
                     # Format the playlist name with the next number
                     formatted_playlist_name = f"{max_number + 1:03d} {new_playlist_name}"

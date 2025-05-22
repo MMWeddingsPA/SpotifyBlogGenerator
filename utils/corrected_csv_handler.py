@@ -20,8 +20,19 @@ def load_csv(file):
     - Column E should contain Spotify playlist links (next to playlist titles)
     """
     try:
-        # Read the CSV file without headers
-        df_raw = pd.read_csv(file, header=None)
+        # Read the CSV file without headers with proper encoding handling
+        try:
+            df_raw = pd.read_csv(file, header=None, encoding='utf-8')
+        except UnicodeDecodeError:
+            logger.warning("UTF-8 encoding failed, trying latin-1")
+            df_raw = pd.read_csv(file, header=None, encoding='latin-1')
+        except pd.errors.EmptyDataError:
+            logger.error("CSV file is empty")
+            raise ValueError("CSV file is empty or has no data")
+        except pd.errors.ParserError as e:
+            logger.error(f"CSV parsing error: {str(e)}")
+            raise ValueError(f"Invalid CSV format: {str(e)}")
+        
         logger.info(f"Read {len(df_raw)} rows from CSV")
         
         # Initialize a list to store the processed data
@@ -120,10 +131,19 @@ def save_csv(df, filename):
             
             # Add each song row
             for _, song_row in playlist_df.iterrows():
+                # Create proper song-artist format with validation
+                song_artist = ""
+                if 'Song_Artist' in song_row and pd.notna(song_row['Song_Artist']):
+                    song_artist = str(song_row['Song_Artist'])
+                elif pd.notna(song_row['Song']) and pd.notna(song_row['Artist']):
+                    song_artist = f"{song_row['Song']} - {song_row['Artist']}"
+                else:
+                    song_artist = "Unknown Song - Unknown Artist"
+                
                 row = [
-                    song_row['Song_Artist'] if 'Song_Artist' in song_row else f"{song_row['Song']}-{song_row['Artist']}",
-                    song_row['Song'],
-                    song_row['Artist'],
+                    song_artist,
+                    song_row['Song'] if pd.notna(song_row['Song']) else "Unknown Song",
+                    song_row['Artist'] if pd.notna(song_row['Artist']) else "Unknown Artist",
                     song_row['YouTube_Link'] if pd.notna(song_row['YouTube_Link']) else "",
                     ""  # Empty for Spotify link in song rows
                 ]

@@ -490,7 +490,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
     - Add proper spacing between sections using empty lines
     - If Spotify link exists, format as: 
       <p><strong>Listen to the full playlist:</strong> <a href="{spotify_link}" target="_blank">Spotify Playlist</a></p>
-      <iframe src="https://open.spotify.com/embed/playlist/{extract_spotify_playlist_id(spotify_link) if spotify_link else 'PLAYLIST_ID'}" width="100%" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+      <iframe src="https://open.spotify.com/embed/playlist/PLAYLIST_ID" width="100%" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
     - Add a class to important elements: class="highlight-section" for key section headers
     """
 
@@ -506,7 +506,7 @@ def generate_blog_post(playlist_name, songs_df, spotify_link=None,
     try:
         # Check if API key is available
         if client.api_key:
-            logging.info(f"OpenAI API Key found: {client.api_key[:5]}...[REDACTED]")
+            logging.info("OpenAI API Key found and loaded successfully")
         else:
             raise ValueError("OpenAI API key not found.")
         
