@@ -1935,30 +1935,68 @@ def main():
                         with st.expander("Revamped Content", expanded=True):
                             st.markdown(st.session_state.wp_edit_revamped_content, unsafe_allow_html=True)
                         
-                        # Post to WordPress button
-                        if st.button("🚀 Post to WordPress as Draft", key="wp_edit_post_button"):
-                            with st.spinner("Creating draft post in WordPress..."):
-                                try:
-                                    # Post to WordPress as draft
-                                    result = wordpress_api.create_post(
-                                        title=post_title,
-                                        content=st.session_state.wp_edit_revamped_content,
-                                        status="draft"
-                                    )
-                                    
-                                    if result.get('success'):
-                                        post_id = result.get('post_id')
-                                        post_url = result.get('post_url')
-                                        edit_url = result.get('edit_url')
+                        # Add radio button to choose between updating existing post or creating new post
+                        post_action = st.radio(
+                            "WordPress Action:",
+                            ["Update Existing Post", "Create New Post"],
+                            index=0,
+                            key="wp_edit_post_action"
+                        )
+                        
+                        # Button text and action based on selection
+                        button_text = "🔄 Update Original Post" if post_action == "Update Existing Post" else "🚀 Create New Draft Post"
+                        
+                        if st.button(button_text, key="wp_edit_post_button"):
+                            # Get the original post ID from post_data
+                            original_post_id = post_data.get('id')
+                            
+                            if post_action == "Update Existing Post" and original_post_id:
+                                with st.spinner(f"Updating post ID: {original_post_id}..."):
+                                    try:
+                                        # Update the existing WordPress post
+                                        result = wordpress_api.update_post(
+                                            post_id=original_post_id,
+                                            title=post_title,
+                                            content=st.session_state.wp_edit_revamped_content,
+                                            status="draft"  # Setting as draft for safety
+                                        )
                                         
-                                        st.success(f"✅ Draft post created successfully! ID: {post_id}")
+                                        if result.get('success'):
+                                            post_id = result.get('post_id')
+                                            post_url = result.get('post_url')
+                                            edit_url = result.get('edit_url')
+                                            
+                                            st.success(f"✅ Post updated successfully! ID: {post_id}")
+                                            
+                                            # Create markdown links to view/edit post
+                                            st.markdown(f"[View Post]({post_url}) | [Edit on WordPress]({edit_url})")
+                                        else:
+                                            st.error(f"❌ Failed to update post: {result.get('error')}")
+                                    except Exception as e:
+                                        st.error(f"❌ Error updating WordPress post: {str(e)}")
+                            else:
+                                with st.spinner("Creating new draft post in WordPress..."):
+                                    try:
+                                        # Post to WordPress as a new draft
+                                        result = wordpress_api.create_post(
+                                            title=post_title,
+                                            content=st.session_state.wp_edit_revamped_content,
+                                            status="draft"
+                                        )
                                         
-                                        # Create markdown links to view/edit post
-                                        st.markdown(f"[View Post]({post_url}) | [Edit on WordPress]({edit_url})")
-                                    else:
-                                        st.error(f"❌ Failed to create post: {result.get('error')}")
-                                except Exception as e:
-                                    st.error(f"❌ Error posting to WordPress: {str(e)}")
+                                        if result.get('success'):
+                                            post_id = result.get('post_id')
+                                            post_url = result.get('post_url')
+                                            edit_url = result.get('edit_url')
+                                            
+                                            st.success(f"✅ New draft post created successfully! ID: {post_id}")
+                                            
+                                            # Create markdown links to view/edit post
+                                            st.markdown(f"[View Post]({post_url}) | [Edit on WordPress]({edit_url})")
+                                        else:
+                                            st.error(f"❌ Failed to create post: {result.get('error')}")
+                                    except Exception as e:
+                                        st.error(f"❌ Error posting to WordPress: {str(e)}")
                 except Exception as e:
                     st.error(f"Error loading post data: {str(e)}")
             
