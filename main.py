@@ -2162,65 +2162,80 @@ def main():
                 
                 # Add verification check first
                 with st.expander("🔧 Check Code Snippet Setup", expanded=True):
-                    if st.button("Verify Elementor Endpoint", key="verify_endpoint"):
-                        from utils.revision_checker import verify_elementor_endpoint
+                    with st.form("verify_form"):
+                        st.write("Check if the Code Snippet is properly installed and active")
+                        verify_submitted = st.form_submit_button("Verify Elementor Endpoint")
                         
-                        with st.spinner("Checking endpoint..."):
-                            verify_result = verify_elementor_endpoint(wordpress_url)
+                        if verify_submitted:
+                            from utils.revision_checker import verify_elementor_endpoint
                             
-                            if verify_result.get('success'):
-                                st.success("✅ Code Snippet is active!")
-                                st.json(verify_result)
-                            else:
-                                st.error("❌ Code Snippet not detected")
-                                st.warning("""
-                                **Action Required:**
-                                1. Go to Snippets → All Snippets in WordPress
-                                2. Make sure 'Expose Elementor Meta Fields' is activated
-                                3. If not there, add it from Code Snippets Setup guide
-                                """)
-                                st.json(verify_result)
+                            with st.spinner("Checking endpoint..."):
+                                verify_result = verify_elementor_endpoint(wordpress_url)
+                                st.session_state['verify_result'] = verify_result
+                    
+                    # Display results outside the form
+                    if 'verify_result' in st.session_state:
+                        verify_result = st.session_state['verify_result']
+                        if verify_result.get('success'):
+                            st.success("✅ Code Snippet is active!")
+                            st.json(verify_result)
+                        else:
+                            st.error("❌ Code Snippet not detected")
+                            st.warning("""
+                            **Action Required:**
+                            1. Go to Snippets → All Snippets in WordPress
+                            2. Make sure 'Expose Elementor Meta Fields' is activated
+                            3. If not there, add it from Code Snippets Setup guide
+                            """)
+                            st.json(verify_result)
                 
-                col1, col2, col3 = st.columns(3)
+                # Create a tabbed interface for diagnostics
+                tab1, tab2, tab3 = st.tabs(["Post Analysis", "Elementor Check", "Test Update"])
                 
-                with col1:
-                    if st.button("🔍 Check Post Details", key="check_revisions"):
-                        from utils.revision_checker import check_post_revisions
-                        
-                        with st.spinner("Analyzing post..."):
-                            revision_info = check_post_revisions(
-                                wordpress_url,
-                                wordpress_username,
-                                wordpress_password,
-                                st.session_state['last_update_post_id']
-                            )
-                            st.session_state['revision_info'] = revision_info
+                with tab1:
+                    with st.form("post_analysis_form"):
+                        st.write("Analyze post details and revisions")
+                        if st.form_submit_button("🔍 Check Post Details"):
+                            from utils.revision_checker import check_post_revisions
+                            
+                            with st.spinner("Analyzing post..."):
+                                revision_info = check_post_revisions(
+                                    wordpress_url,
+                                    wordpress_username,
+                                    wordpress_password,
+                                    st.session_state['last_update_post_id']
+                                )
+                                st.session_state['revision_info'] = revision_info
                 
-                with col2:
-                    if st.button("🧪 Test Elementor Status", key="check_elementor_status"):
-                        from utils.wordpress_test import check_elementor_status
-                        
-                        with st.spinner("Checking Elementor..."):
-                            elementor_status = check_elementor_status(
-                                wordpress_url,
-                                wordpress_username,
-                                wordpress_password,
-                                st.session_state['last_update_post_id']
-                            )
-                            st.session_state['elementor_status'] = elementor_status
+                with tab2:
+                    with st.form("elementor_check_form"):
+                        st.write("Check if post uses Elementor")
+                        if st.form_submit_button("🧪 Test Elementor Status"):
+                            from utils.wordpress_test import check_elementor_status
+                            
+                            with st.spinner("Checking Elementor..."):
+                                elementor_status = check_elementor_status(
+                                    wordpress_url,
+                                    wordpress_username,
+                                    wordpress_password,
+                                    st.session_state['last_update_post_id']
+                                )
+                                st.session_state['elementor_status'] = elementor_status
                 
-                with col3:
-                    if st.button("📝 Run Test Update", key="run_test_update"):
-                        from utils.wordpress_test import test_simple_update
-                        
-                        with st.spinner("Running test update..."):
-                            test_result = test_simple_update(
-                                wordpress_url,
-                                wordpress_username,
-                                wordpress_password,
-                                st.session_state['last_update_post_id']
-                            )
-                            st.session_state['test_result'] = test_result
+                with tab3:
+                    with st.form("test_update_form"):
+                        st.write("Send a test update with visible content")
+                        if st.form_submit_button("📝 Run Test Update"):
+                            from utils.wordpress_test import test_simple_update
+                            
+                            with st.spinner("Running test update..."):
+                                test_result = test_simple_update(
+                                    wordpress_url,
+                                    wordpress_username,
+                                    wordpress_password,
+                                    st.session_state['last_update_post_id']
+                                )
+                                st.session_state['test_result'] = test_result
                 
                 # Always show results containers
                 col_status, col_test = st.columns(2)
