@@ -347,11 +347,21 @@ class WordPressAPI:
             if preserve_elementor:
                 logger.info(f"Fetching current post to preserve Elementor data...")
                 current_post = self.get_post(post_id, context='edit')
-                if current_post and current_post.get('meta'):
-                    elementor_data = current_post['meta'].get('_elementor_data')
-                    elementor_edit_mode = current_post['meta'].get('_elementor_edit_mode')
-                    if elementor_data:
-                        logger.info(f"Found Elementor data to preserve (length: {len(elementor_data)})")
+                if current_post:
+                    logger.info(f"Current post status: {current_post.get('status')}")
+                    if current_post.get('meta'):
+                        logger.info(f"Meta fields found: {list(current_post['meta'].keys())}")
+                        elementor_data = current_post['meta'].get('_elementor_data')
+                        elementor_edit_mode = current_post['meta'].get('_elementor_edit_mode')
+                        if elementor_data:
+                            logger.info(f"Found Elementor data to preserve (length: {len(elementor_data)})")
+                            logger.info(f"Elementor edit mode: {elementor_edit_mode}")
+                        else:
+                            logger.warning("No Elementor data found in post meta")
+                    else:
+                        logger.warning("No meta fields returned from WordPress")
+                else:
+                    logger.error(f"Failed to fetch current post {post_id}")
                     
             # Prepare endpoint URL with post ID
             endpoint = f"{self.api_url}/posts/{post_id}"
@@ -401,6 +411,9 @@ class WordPressAPI:
                 safe_headers['Authorization'] = 'Basic [REDACTED]'
             logger.info(f"Request headers: {json.dumps(safe_headers)}")
             
+            # Log the complete request data for debugging
+            logger.info(f"Request data: {json.dumps(post_data, indent=2)}")
+            
             # Make the request (PUT is used for updates)
             response = requests.put(
                 endpoint,
@@ -413,20 +426,36 @@ class WordPressAPI:
             logger.info(f"Response status: {response.status_code}")
             logger.info(f"Response headers: {dict(response.headers)}")
             
+            # Log response body for debugging
+            try:
+                response_json = response.json()
+                logger.info(f"Response body: {json.dumps(response_json, indent=2)}")
+            except:
+                logger.info(f"Response text: {response.text[:500]}")
+            
             # Check if successful
             if response.status_code in (200, 201):
                 logger.info(f"Post updated successfully!")
-                json_data = response.json()
+                json_data = response_json if 'response_json' in locals() else response.json()
                 
                 post_id = json_data.get('id')
                 post_url = json_data.get('link')
                 edit_url = f"{self.base_url}/wp-admin/post.php?post={post_id}&action=edit"
                 
+                # Verify the update by fetching the post again
+                logger.info("Verifying post update...")
+                updated_post = self.get_post(post_id)
+                if updated_post:
+                    logger.info(f"Verified post status: {updated_post.get('status')}")
+                    logger.info(f"Verified post modified date: {updated_post.get('modified')}")
+                
                 return {
                     'success': True,
                     'post_id': post_id,
                     'post_url': post_url,
-                    'edit_url': edit_url
+                    'edit_url': edit_url,
+                    'modified': json_data.get('modified'),
+                    'status': json_data.get('status')
                 }
             else:
                 # Log the full error response
@@ -680,6 +709,41 @@ class WordPressAPI:
             logger.exception("Full exception traceback:")
             return []
             
+    def test_meta_fields(self, post_id):
+        """
+        Test if meta fields are accessible via REST API
+        :param post_id: Post ID to test
+        :return: Dictionary with test results
+        """
+        try:
+            logger.info(f"Testing meta field access for post {post_id}")
+            
+            # Test with context=edit
+            post_with_edit = self.get_post(post_id, context='edit')
+            
+            # Test with context=view
+            post_with_view = self.get_post(post_id, context='view')
+            
+            results = {
+                'post_id': post_id,
+                'edit_context': {
+                    'has_meta': bool(post_with_edit and post_with_edit.get('meta')),
+                    'meta_fields': list(post_with_edit.get('meta', {}).keys()) if post_with_edit else [],
+                    'has_elementor_data': bool(post_with_edit and post_with_edit.get('meta', {}).get('_elementor_data')),
+                },
+                'view_context': {
+                    'has_meta': bool(post_with_view and post_with_view.get('meta')),
+                    'meta_fields': list(post_with_view.get('meta', {}).keys()) if post_with_view else [],
+                }
+            }
+            
+            logger.info(f"Meta field test results: {json.dumps(results, indent=2)}")
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error testing meta fields: {str(e)}")
+            return {'error': str(e)}
+    
     def diagnose_connection(self):
         """
         Comprehensive WordPress API connection diagnostics

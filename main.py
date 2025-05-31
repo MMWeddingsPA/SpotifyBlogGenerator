@@ -2085,18 +2085,25 @@ def main():
                                             post_id=original_post_id,
                                             title=post_title,
                                             content=st.session_state.wp_edit_revamped_content,
-                                            status="publish"  # Setting as publish to ensure live update with Elementor
+                                            status="draft"  # Setting as draft for review before publishing
                                         )
                                         
                                         if result.get('success'):
                                             post_id = result.get('post_id')
                                             post_url = result.get('post_url')
                                             edit_url = result.get('edit_url')
+                                            modified = result.get('modified', 'Unknown')
+                                            status = result.get('status', 'Unknown')
                                             
                                             st.success(f"✅ Post updated successfully! ID: {post_id}")
+                                            st.info(f"📝 Status: {status} | Modified: {modified}")
                                             
                                             # Create markdown links to view/edit post
                                             st.markdown(f"[View Post]({post_url}) | [Edit on WordPress]({edit_url})")
+                                            
+                                            # Additional debug info
+                                            with st.expander("Debug Information"):
+                                                st.json(result)
                                         else:
                                             st.error(f"❌ Failed to update post: {result.get('error')}")
                                     except Exception as e:
