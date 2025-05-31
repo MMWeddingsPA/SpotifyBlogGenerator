@@ -4,6 +4,7 @@ import json
 import logging
 import urllib.parse
 from datetime import datetime
+from .elementor_handler import ElementorHandler
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -345,7 +346,7 @@ class WordPressAPI:
             elementor_edit_mode = None
             
             if preserve_elementor:
-                logger.info(f"Fetching current post to preserve Elementor data...")
+                logger.info(f"Fetching current post to handle Elementor data...")
                 current_post = self.get_post(post_id, context='edit')
                 if current_post:
                     logger.info(f"Current post status: {current_post.get('status')}")
@@ -354,10 +355,25 @@ class WordPressAPI:
                         elementor_data = current_post['meta'].get('_elementor_data')
                         elementor_edit_mode = current_post['meta'].get('_elementor_edit_mode')
                         if elementor_data:
-                            logger.info(f"Found Elementor data to preserve (length: {len(elementor_data)})")
+                            logger.info(f"Found Elementor data (length: {len(elementor_data)})")
                             logger.info(f"Elementor edit mode: {elementor_edit_mode}")
+                            
+                            # Update the Elementor content with the new content
+                            logger.info("Updating Elementor widget content...")
+                            updated_elementor_data = ElementorHandler.update_elementor_content(
+                                elementor_data,
+                                content,  # The new content to insert
+                                update_all_text=False  # Only update main content widget
+                            )
+                            elementor_data = updated_elementor_data
+                            logger.info("Elementor content updated successfully")
                         else:
                             logger.warning("No Elementor data found in post meta")
+                            # Optionally create a simple Elementor structure
+                            if current_post.get('meta', {}).get('_elementor_edit_mode') == 'builder':
+                                logger.info("Creating new Elementor structure...")
+                                elementor_data = ElementorHandler.create_simple_elementor_structure(content)
+                                elementor_edit_mode = 'builder'
                     else:
                         logger.warning("No meta fields returned from WordPress")
                 else:

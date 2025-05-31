@@ -2069,9 +2069,15 @@ def main():
                         # Button text and action based on selection
                         button_text = "🔄 Update Original Post" if post_action == "Update Existing Post" else "🚀 Create New Draft Post"
                         
-                        # Show info about Elementor preservation
+                        # Show info about Elementor preservation and draft workflow
                         if post_action == "Update Existing Post":
-                            st.info("ℹ️ Elementor layouts and styling will be preserved when updating posts.")
+                            st.info("""
+                            ℹ️ **Elementor Draft Workflow:**
+                            1. Your updates will be saved as a **Draft** for review
+                            2. Elementor content will be properly updated (not just WordPress content)
+                            3. Find the draft in WordPress Admin → Posts → Drafts
+                            4. Review in Elementor and click Publish when ready
+                            """)
                         
                         if st.button(button_text, key="wp_edit_post_button"):
                             # Get the original post ID from post_data
@@ -2098,42 +2104,25 @@ def main():
                                             st.success(f"✅ Post updated successfully! ID: {post_id}")
                                             st.info(f"📝 Status: {status} | Modified: {modified}")
                                             
+                                            if status == 'draft':
+                                                st.warning("""
+                                                ⚠️ **Next Steps:**
+                                                1. Go to WordPress Admin → Posts → Drafts
+                                                2. Find your updated post
+                                                3. Click "Edit with Elementor" to review
+                                                4. Click "Publish" when ready
+                                                """)
+                                            
                                             # Create markdown links to view/edit post
                                             st.markdown(f"[View Post]({post_url}) | [Edit on WordPress]({edit_url})")
+                                            
+                                            # Store result in session state
+                                            st.session_state['last_update_result'] = result
+                                            st.session_state['last_update_post_id'] = post_id
                                             
                                             # Additional debug info
                                             with st.expander("Debug Information"):
                                                 st.json(result)
-                                            
-                                            # Add diagnostic button
-                                            if st.button("🔍 Run Diagnostics", key="run_diagnostics"):
-                                                from utils.wordpress_test import check_elementor_status, test_simple_update
-                                                
-                                                with st.spinner("Running diagnostics..."):
-                                                    # Check Elementor status
-                                                    elementor_status = check_elementor_status(
-                                                        wordpress_url,
-                                                        wordpress_username,
-                                                        wordpress_password,
-                                                        post_id
-                                                    )
-                                                    
-                                                    st.subheader("Elementor Status Check")
-                                                    st.json(elementor_status)
-                                                    
-                                                    if elementor_status.get('has_elementor_data'):
-                                                        st.warning("⚠️ This post uses Elementor. Updates to the content field may not be visible on the frontend.")
-                                                        st.info("💡 Elementor renders from its own data structure, not the WordPress content field.")
-                                                    
-                                                    # Offer simple test
-                                                    if st.button("🧪 Run Simple Test Update", key="simple_test"):
-                                                        test_result = test_simple_update(
-                                                            wordpress_url,
-                                                            wordpress_username,
-                                                            wordpress_password,
-                                                            post_id
-                                                        )
-                                                        st.json(test_result)
                                         else:
                                             st.error(f"❌ Failed to update post: {result.get('error')}")
                                     except Exception as e:
@@ -2163,6 +2152,76 @@ def main():
                                         st.error(f"❌ Error posting to WordPress: {str(e)}")
                 except Exception as e:
                     st.error(f"Error loading post data: {str(e)}")
+            
+            # Diagnostics section (persistent after updates)
+            st.divider()
+            st.subheader("🔍 WordPress Diagnostics")
+            
+            if 'last_update_result' in st.session_state and 'last_update_post_id' in st.session_state:
+                st.info(f"Last updated post ID: {st.session_state['last_update_post_id']}")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if st.button("Check Elementor Status", key="check_elementor_status"):
+                        from utils.wordpress_test import check_elementor_status
+                        
+                        with st.spinner("Checking Elementor status..."):
+                            elementor_status = check_elementor_status(
+                                wordpress_url,
+                                wordpress_username,
+                                wordpress_password,
+                                st.session_state['last_update_post_id']
+                            )
+                            st.session_state['elementor_status'] = elementor_status
+                
+                with col2:
+                    if st.button("Run Test Update", key="run_test_update"):
+                        from utils.wordpress_test import test_simple_update
+                        
+                        with st.spinner("Running test update..."):
+                            test_result = test_simple_update(
+                                wordpress_url,
+                                wordpress_username,
+                                wordpress_password,
+                                st.session_state['last_update_post_id']
+                            )
+                            st.session_state['test_result'] = test_result
+                
+                # Display results if available
+                if 'elementor_status' in st.session_state:
+                    with st.expander("Elementor Status Results", expanded=True):
+                        status = st.session_state['elementor_status']
+                        st.json(status)
+                        
+                        if status.get('has_elementor_data'):
+                            st.warning("⚠️ This post uses Elementor!")
+                            st.info("""
+                            **Your updates ARE saved, but in the wrong place:**
+                            - ✅ Updated in: WordPress `content` field
+                            - ❌ Not updated in: Elementor `_elementor_data` field
+                            - 👁️ Frontend shows: Only Elementor data
+                            
+                            **To see your updates right now:**
+                            1. Go to WordPress Admin → Posts
+                            2. Click "Edit" (NOT "Edit with Elementor")
+                            3. Your updated content is there!
+                            
+                            **To make updates visible on frontend:**
+                            1. Add the PHP file to `/wp-content/mu-plugins/`
+                            2. This enables updating Elementor widgets directly
+                            3. Or create new posts without using Elementor
+                            """)
+                        else:
+                            st.success("✅ This post does NOT use Elementor. Updates should be visible.")
+                
+                if 'test_result' in st.session_state:
+                    with st.expander("Test Update Results", expanded=True):
+                        st.json(st.session_state['test_result'])
+                        if st.session_state['test_result'].get('success'):
+                            st.info("Check your WordPress site now. You should see a red-bordered test box.")
+            else:
+                st.info("Update a post first to run diagnostics.")
             
             # Add a button to go to WordPress Revamp tab
             if st.button("Go to WordPress Revamp", key="go_to_revamp_button"):
