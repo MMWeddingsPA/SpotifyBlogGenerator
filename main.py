@@ -2069,6 +2069,10 @@ def main():
                         # Button text and action based on selection
                         button_text = "🔄 Update Original Post" if post_action == "Update Existing Post" else "🚀 Create New Draft Post"
                         
+                        # Show info about Elementor preservation
+                        if post_action == "Update Existing Post":
+                            st.info("ℹ️ Elementor layouts and styling will be preserved when updating posts.")
+                        
                         if st.button(button_text, key="wp_edit_post_button"):
                             # Get the original post ID from post_data
                             original_post_id = post_data.get('id')
@@ -2081,7 +2085,7 @@ def main():
                                             post_id=original_post_id,
                                             title=post_title,
                                             content=st.session_state.wp_edit_revamped_content,
-                                            status="draft"  # Setting as draft for safety
+                                            status="publish"  # Setting as publish to ensure live update with Elementor
                                         )
                                         
                                         if result.get('success'):

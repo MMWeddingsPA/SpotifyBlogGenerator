@@ -326,7 +326,7 @@ class WordPressAPI:
                 'error': f"Error creating WordPress post: {str(e)}"
             }
     
-    def update_post(self, post_id, title, content, status=None, featured_media=None, categories=None, tags=None):
+    def update_post(self, post_id, title, content, status=None, featured_media=None, categories=None, tags=None, preserve_elementor=True):
         """
         Update an existing post in WordPress
         :param post_id: ID of the post to update
@@ -336,9 +336,23 @@ class WordPressAPI:
         :param featured_media: Featured image ID (optional)
         :param categories: List of category IDs (optional)
         :param tags: List of tag IDs or names (optional)
+        :param preserve_elementor: Whether to preserve Elementor metadata (default: True)
         :return: Post details if successful, error message if failed
         """
         try:
+            # If preserving Elementor, fetch the current post with meta fields
+            elementor_data = None
+            elementor_edit_mode = None
+            
+            if preserve_elementor:
+                logger.info(f"Fetching current post to preserve Elementor data...")
+                current_post = self.get_post(post_id, context='edit')
+                if current_post and current_post.get('meta'):
+                    elementor_data = current_post['meta'].get('_elementor_data')
+                    elementor_edit_mode = current_post['meta'].get('_elementor_edit_mode')
+                    if elementor_data:
+                        logger.info(f"Found Elementor data to preserve (length: {len(elementor_data)})")
+                    
             # Prepare endpoint URL with post ID
             endpoint = f"{self.api_url}/posts/{post_id}"
             logger.info(f"Updating post at: {endpoint}")
@@ -348,6 +362,14 @@ class WordPressAPI:
                 'title': {'raw': title},
                 'content': {'raw': content},
             }
+            
+            # If we have Elementor data, include it in the update
+            if preserve_elementor and elementor_data:
+                post_data['meta'] = {
+                    '_elementor_data': elementor_data,
+                    '_elementor_edit_mode': elementor_edit_mode or 'builder'
+                }
+                logger.info("Including Elementor metadata in update")
             
             # Add optional fields if provided
             if status:
@@ -554,15 +576,16 @@ class WordPressAPI:
             logger.exception("Full exception traceback:")
             return {'posts': [], 'total': 0, 'pages': 0, 'current_page': page}
     
-    def get_post(self, post_id):
+    def get_post(self, post_id, context='view'):
         """
         Get a specific post by ID
         :param post_id: WordPress post ID
+        :param context: Context for the request ('view' or 'edit'). 'edit' includes meta fields
         :return: Post details if successful, None if failed
         """
         try:
-            endpoint = f"{self.api_url}/posts/{post_id}?_embed=true"
-            logger.info(f"Getting post from: {endpoint}")
+            endpoint = f"{self.api_url}/posts/{post_id}?_embed=true&context={context}"
+            logger.info(f"Getting post from: {endpoint} (context: {context})")
             
             # Prepare headers with auth and standard headers
             headers = self.standard_headers.copy()
@@ -593,7 +616,8 @@ class WordPressAPI:
                     'link': post.get('link'),
                     'categories': post.get('categories', []),
                     'tags': post.get('tags', []),
-                    'status': post.get('status')
+                    'status': post.get('status'),
+                    'meta': post.get('meta', {})  # Include meta fields when context=edit
                 }
                 
                 # Add featured image if available
