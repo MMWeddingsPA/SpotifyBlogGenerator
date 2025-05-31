@@ -2160,13 +2160,47 @@ def main():
             if 'last_update_result' in st.session_state and 'last_update_post_id' in st.session_state:
                 st.info(f"Last updated post ID: {st.session_state['last_update_post_id']}")
                 
-                col1, col2 = st.columns(2)
+                # Add verification check first
+                with st.expander("🔧 Check Code Snippet Setup", expanded=True):
+                    if st.button("Verify Elementor Endpoint", key="verify_endpoint"):
+                        from utils.revision_checker import verify_elementor_endpoint
+                        
+                        with st.spinner("Checking endpoint..."):
+                            verify_result = verify_elementor_endpoint(wordpress_url)
+                            
+                            if verify_result.get('success'):
+                                st.success("✅ Code Snippet is active!")
+                                st.json(verify_result)
+                            else:
+                                st.error("❌ Code Snippet not detected")
+                                st.warning("""
+                                **Action Required:**
+                                1. Go to Snippets → All Snippets in WordPress
+                                2. Make sure 'Expose Elementor Meta Fields' is activated
+                                3. If not there, add it from Code Snippets Setup guide
+                                """)
+                                st.json(verify_result)
+                
+                col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    if st.button("Check Elementor Status", key="check_elementor_status"):
+                    if st.button("🔍 Check Post Details", key="check_revisions"):
+                        from utils.revision_checker import check_post_revisions
+                        
+                        with st.spinner("Analyzing post..."):
+                            revision_info = check_post_revisions(
+                                wordpress_url,
+                                wordpress_username,
+                                wordpress_password,
+                                st.session_state['last_update_post_id']
+                            )
+                            st.session_state['revision_info'] = revision_info
+                
+                with col2:
+                    if st.button("🧪 Test Elementor Status", key="check_elementor_status"):
                         from utils.wordpress_test import check_elementor_status
                         
-                        with st.spinner("Checking Elementor status..."):
+                        with st.spinner("Checking Elementor..."):
                             elementor_status = check_elementor_status(
                                 wordpress_url,
                                 wordpress_username,
@@ -2175,8 +2209,8 @@ def main():
                             )
                             st.session_state['elementor_status'] = elementor_status
                 
-                with col2:
-                    if st.button("Run Test Update", key="run_test_update"):
+                with col3:
+                    if st.button("📝 Run Test Update", key="run_test_update"):
                         from utils.wordpress_test import test_simple_update
                         
                         with st.spinner("Running test update..."):
@@ -2188,38 +2222,87 @@ def main():
                             )
                             st.session_state['test_result'] = test_result
                 
-                # Display results if available
-                if 'elementor_status' in st.session_state:
-                    with st.expander("Elementor Status Results", expanded=True):
-                        status = st.session_state['elementor_status']
-                        st.json(status)
-                        
-                        if status.get('has_elementor_data'):
-                            st.warning("⚠️ This post uses Elementor!")
-                            st.info("""
-                            **Your updates ARE saved, but in the wrong place:**
-                            - ✅ Updated in: WordPress `content` field
-                            - ❌ Not updated in: Elementor `_elementor_data` field
-                            - 👁️ Frontend shows: Only Elementor data
-                            
-                            **To see your updates right now:**
-                            1. Go to WordPress Admin → Posts
-                            2. Click "Edit" (NOT "Edit with Elementor")
-                            3. Your updated content is there!
-                            
-                            **To make updates visible on frontend:**
-                            1. Add the PHP file to `/wp-content/mu-plugins/`
-                            2. This enables updating Elementor widgets directly
-                            3. Or create new posts without using Elementor
-                            """)
-                        else:
-                            st.success("✅ This post does NOT use Elementor. Updates should be visible.")
+                # Always show results containers
+                col_status, col_test = st.columns(2)
                 
-                if 'test_result' in st.session_state:
-                    with st.expander("Test Update Results", expanded=True):
-                        st.json(st.session_state['test_result'])
-                        if st.session_state['test_result'].get('success'):
-                            st.info("Check your WordPress site now. You should see a red-bordered test box.")
+                with col_status:
+                    with st.container():
+                        st.subheader("Elementor Status")
+                        if 'elementor_status' in st.session_state:
+                            status = st.session_state['elementor_status']
+                            
+                            if status.get('error'):
+                                st.error(f"Error: {status['error']}")
+                            else:
+                                # Show key information
+                                st.metric("Uses Elementor", "Yes" if status.get('has_elementor_data') else "No")
+                                st.metric("Meta Fields Available", "Yes" if status.get('has_meta') else "No")
+                                
+                                if status.get('has_elementor_data'):
+                                    st.warning("⚠️ This post uses Elementor!")
+                                    st.info("""
+                                    **The Issue:**
+                                    - Updates go to WordPress content field
+                                    - Elementor ignores this field
+                                    - Frontend shows only Elementor data
+                                    """)
+                                else:
+                                    st.success("✅ No Elementor detected")
+                                
+                                # Show raw data in expander
+                                with st.expander("View Full Details"):
+                                    st.json(status)
+                        else:
+                            st.info("Click 'Check Elementor Status' to analyze")
+                
+                with col_test:
+                    with st.container():
+                        st.subheader("Test Update Results")
+                        if 'test_result' in st.session_state:
+                            result = st.session_state['test_result']
+                            
+                            if result.get('success'):
+                                st.success("✅ Test update sent!")
+                                st.info(f"Timestamp: {result.get('timestamp', 'Unknown')}")
+                                st.warning("Check your site for a red test box")
+                            else:
+                                st.error(f"❌ Test failed: {result.get('error', 'Unknown error')}")
+                            
+                            # Show raw data in expander
+                            with st.expander("View Full Details"):
+                                st.json(result)
+                        else:
+                            st.info("Click 'Run Test Update' to test")
+                
+                # Show revision info if available
+                if 'revision_info' in st.session_state:
+                    with st.expander("📋 Post Analysis Results", expanded=True):
+                        info = st.session_state['revision_info']
+                        
+                        if info.get('error'):
+                            st.error(f"Error: {info['error']}")
+                        else:
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.subheader("Post Details")
+                                st.write(f"**Status:** {info.get('post_status', 'Unknown')}")
+                                st.write(f"**Modified:** {info.get('post_modified', 'Unknown')}")
+                                st.write(f"**Has Elementor:** {'Yes' if info.get('has_elementor') else 'No'}")
+                                
+                                if info.get('has_elementor'):
+                                    st.write(f"**Elementor Data Length:** {info.get('elementor_data_length', 0)}")
+                                    st.write(f"**Valid JSON:** {'Yes' if info.get('elementor_valid_json') else 'No'}")
+                            
+                            with col2:
+                                st.subheader("Diagnosis")
+                                for diag in info.get('diagnosis', []):
+                                    st.write(diag)
+                                
+                                if info.get('recommendations'):
+                                    st.subheader("Recommendations")
+                                    for rec in info.get('recommendations', []):
+                                        st.write(rec)
             else:
                 st.info("Update a post first to run diagnostics.")
             
