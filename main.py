@@ -2104,6 +2104,36 @@ def main():
                                             # Additional debug info
                                             with st.expander("Debug Information"):
                                                 st.json(result)
+                                            
+                                            # Add diagnostic button
+                                            if st.button("🔍 Run Diagnostics", key="run_diagnostics"):
+                                                from utils.wordpress_test import check_elementor_status, test_simple_update
+                                                
+                                                with st.spinner("Running diagnostics..."):
+                                                    # Check Elementor status
+                                                    elementor_status = check_elementor_status(
+                                                        wordpress_url,
+                                                        wordpress_username,
+                                                        wordpress_password,
+                                                        post_id
+                                                    )
+                                                    
+                                                    st.subheader("Elementor Status Check")
+                                                    st.json(elementor_status)
+                                                    
+                                                    if elementor_status.get('has_elementor_data'):
+                                                        st.warning("⚠️ This post uses Elementor. Updates to the content field may not be visible on the frontend.")
+                                                        st.info("💡 Elementor renders from its own data structure, not the WordPress content field.")
+                                                    
+                                                    # Offer simple test
+                                                    if st.button("🧪 Run Simple Test Update", key="simple_test"):
+                                                        test_result = test_simple_update(
+                                                            wordpress_url,
+                                                            wordpress_username,
+                                                            wordpress_password,
+                                                            post_id
+                                                        )
+                                                        st.json(test_result)
                                         else:
                                             st.error(f"❌ Failed to update post: {result.get('error')}")
                                     except Exception as e:
